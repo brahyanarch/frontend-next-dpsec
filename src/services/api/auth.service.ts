@@ -1,94 +1,77 @@
 // services/api/auth.service.ts
-import { LoginResponse, User } from "@/types";
-import { getToken } from "@/services/api/getToken.service"; // Importar la función para obtener el token
-import { toast } from "sonner"; // Importa la función toast de sonner
-import { Data} from '../../app/intranet/inicio/sub-configuracion/usuarios/data/schema'
-import { API_URL } from "@/services/api/API.service";
+import { dataUsuario, LoginResponse, User } from "@/types";
+import { Data as UserData } from "@/app/intranet/inicio/sub-configuracion/usuarios/data/schema";
+import { toast } from "sonner";
+import { API_URL, apiClient } from "@/services/api/API.service";
 
-export const login = async (email: string, password: string): Promise<LoginResponse> => {
-  const response = await fetch(`${API_URL}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Error al iniciar sesión");
-  }
-
-  return response.json();
-};
-
-export const loginUnique = async (user: User): Promise<LoginResponse> => {
-  const response = await fetch(`${API_URL}/api/auth/login/unique`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      iddatausuario: user.iddatauser,
-      idrol: user.roles.id_rol,
-      idsubunidad: user.subunidad.id_subuni,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Error al seleccionar el rol");
-  }
-
-  return response.json();
-};
-
-export const obtenerUsuarios = async (): Promise<Data[]> => {
-  const token = await getToken()
-  console.log(token);
-  try {
-    const response = await fetch(`${API_URL}/api/auth/users`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      toast.error(errorData.error || "Error al obtener usuarios")
-      throw new Error(errorData.error || "Error al obtener usuarios")
+export const AuthService = {
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    try {
+      const response = await apiClient.post('/api/auth/login', { email, password });
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || "Error al iniciar sesión";
+      throw new Error(errorMessage);
     }
+  },
 
-    const data = await response.json()
-    return data.users
+  loginUnique: async (user: User): Promise<LoginResponse> => {
+    try {
+      const payload = {
+        iddatausuario: user.iddatauser,
+        idrol: user.roles.id_rol,
+        idsubunidad: user.subunidad.id_subuni,
+      };
+      
+      const response = await apiClient.post('/api/auth/login/unique', payload);
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || "Error al seleccionar el rol";
+      throw new Error(errorMessage);
+    }
+  },
 
-  } catch (error) {
-    toast.error("Error al cargar los usuarios")
-    throw error
-  }
-}
+  registerData: async (dni: string, email: string, nombre: string, aPaterno: string, aMaterno: string, idpe: number): Promise<LoginResponse> => {
+    try {
+      const payload = {
+        dni: dni,
+        email: email,
+        nombre: nombre,
+        aPaterno: aPaterno,
+        aMaterno: aMaterno,
+        idpe: idpe || null, // Aseguramos que idpe sea opcional
+      };
+      
+      const response = await apiClient.post('/api/auth/register/datos', payload);
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || "Error al seleccionar el rol";
+      throw new Error(errorMessage);
+    }
+  },
 
-export const actualizarEstadoUsuario = async (
-  userId: number, 
-  nuevoEstado: boolean
-): Promise<boolean> => {
-  const token = await getToken()
-  
-  try {
-    const response = await fetch(`${API_URL}/api/auth/user/${userId}/status`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ estado: nuevoEstado }),
-    })
+  obtenerUsuarios: async (): Promise<UserData[]> => {
+    try {
+      const response = await apiClient.get('/api/auth/users');
+      return response.data.users;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || "Error al obtener usuarios";
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+  },
 
-    if (!response.ok) throw new Error("Error en la solicitud")
-    return true
-  } catch (error) {
-    throw error
-  }
-}
+  updateUserStatus: async (
+    userId: number, 
+    nuevoEstado: boolean
+  ): Promise<boolean> => {
+    try {
+      await apiClient.put(`/api/auth/user/${userId}/status`, { estado: nuevoEstado });
+      return true;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || "Error al actualizar estado";
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+  },
+};

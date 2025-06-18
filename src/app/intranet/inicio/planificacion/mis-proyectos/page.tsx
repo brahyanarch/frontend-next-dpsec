@@ -14,6 +14,7 @@ import { Separator } from "@radix-ui/react-separator";
 import SkeletonTable from "@/components/skeletonTable";
 import { Toaster } from "react-hot-toast";
 import { Label } from "@/components/ui/label";
+import { ProjectService } from '@/services/api/project.service';
 
 export default function TaskPage() {
   const [data, setData] = useState<Project[] | null>(null);
@@ -22,10 +23,10 @@ export default function TaskPage() {
 
   const { user, loading, logout } = useAuth();
   useEffect(() => {
-    const fetchProgramasEstudio = async () => {
+    const fetchProjects = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/project/all/");
-        if (!response.ok) {
+        const response = await ProjectService.getProjectsByUsuario();
+        if (!response) {
           throw new Error("Error al cargar los datos.");
         }
         const data = await response.json();
@@ -39,8 +40,8 @@ export default function TaskPage() {
       }
     };
 
-    fetchProgramasEstudio();
-  }, []);
+    fetchProjects();
+  }, []); 
 
 
 

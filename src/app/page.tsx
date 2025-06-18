@@ -22,11 +22,11 @@ function Home() {
   return (
     <main className="bg-bgroot min-h-screen w-full">
       <Navbar />
-        <Button onClick={toggleTheme}>Cambiar a </Button>
+        
       <Carrusel data={datos} />
       <ConsultarCertificado />
       <Footer />
-      {/*<div className="text-center">
+      {/*<div className="text-center"><Button onClick={toggleTheme}>Cambiar a </Button>
         <Label className="text-4xl font-bold text-bgtext">Hola mundo {theme} </Label>
         <Button onClick={toggleTheme}>Cambiar a </Button>
       </div>*/}

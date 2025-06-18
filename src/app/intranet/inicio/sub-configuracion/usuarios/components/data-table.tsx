@@ -32,12 +32,13 @@ import { DataTableToolbar } from "./data-table-toolbar"
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  
+  onDataChange?: (newData: TData[]) => void // Nueva prop
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  onDataChange // Recibimos setData 
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
@@ -58,6 +59,9 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
+    },
+    meta:{
+      onDataChange, // Pasamos setData a meta para que esté disponible en las acciones de fila
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,

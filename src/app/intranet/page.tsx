@@ -7,10 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Image from 'next/image';
+import Image from "next/image";
 import Cookies from "js-cookie";
 import { LoginResponse, RoleProps, User } from "@/types";
-import { login, loginUnique } from "@/services/api/auth.service";
+import { AuthService } from "@/services/api/auth.service";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CircleUser } from "lucide-react";
+
 
 function RoleCard({ title, subtitle, onClick }: RoleProps) {
   return (
@@ -18,8 +21,11 @@ function RoleCard({ title, subtitle, onClick }: RoleProps) {
       className="w-48 h-48 bg-gray-50 text-black border border-gray-600 flex flex-col items-center justify-between cursor-pointer hover:bg-gray-200"
       onClick={onClick}
     >
-      <CardContent className="text-center p-4">
-        <div className="text-4xl font-bold text-green-500 mb-4">M</div>
+      <CardContent className="text-center p-4 items-center flex flex-col space-y-2">
+        <div className=" text-black text-center ">
+
+        <CircleUser size={50} />
+        </div>
         <div className="text-sm">{title}</div>
         <div className="text-blue-400 text-xs mt-1">{subtitle}</div>
       </CardContent>
@@ -40,8 +46,8 @@ const RoleSelectionPage: React.FC = () => {
     setError(null);
 
     try {
-      const data: LoginResponse = await login(email, password);
-      
+      const data: LoginResponse = await AuthService.login(email, password);
+
       if (data.admin) {
         localStorage.setItem("token", data.token);
         setAdmin(true);
@@ -56,12 +62,12 @@ const RoleSelectionPage: React.FC = () => {
   const handleRoleSelection = async (user: User) => {
     setError(null);
     try {
-      const data = await loginUnique(user);
+      const data = await AuthService.loginUnique(user);
       Cookies.set("auth-token", data.token, {
         expires: 1,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        path: "/"
+        path: "/",
       });
       router.push(`/intranet/inicio`);
     } catch (error: any) {
@@ -79,7 +85,9 @@ const RoleSelectionPage: React.FC = () => {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-300">
       {userRoles.length > 0 ? (
         <div className="w-[50%] space-y-8">
-          <h2 className="text-2xl font-bold text-gray-900">Selecciona un Rol y Subunidad</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Selecciona un Rol y Subunidad
+          </h2>
           <div className="grid grid-cols-3 gap-4">
             {userRoles.map((user, index) => (
               <RoleCard
@@ -149,7 +157,11 @@ const RoleSelectionPage: React.FC = () => {
                 <Button className="w-full bg-emerald-500 hover:bg-emerald-600">
                   Ingresar Ahora
                 </Button>
-                {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+                {error && (
+                  <p className="text-red-500 text-sm mt-2 text-center">
+                    {error}
+                  </p>
+                )}
               </form>
             </div>
           </Card>

@@ -217,7 +217,7 @@ const updateEstadoOptimista = async (idf: number, nuevoEstado: boolean) => {
         <div className="flex items-center justify-between space-y-2">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-left">
-              Formularios de esta sub unidad
+              Formularios de esta sub unidad para subir proyectos
             </h2>
             <p className="text-muted-foreground">
               Lista de todos los formularios configurados para esta sub unidad.

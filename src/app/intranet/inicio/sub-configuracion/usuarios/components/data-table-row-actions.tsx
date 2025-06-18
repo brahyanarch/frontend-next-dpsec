@@ -1,7 +1,7 @@
 // components/user-row-actions.tsx
 "use client"
 
-import { Row } from "@tanstack/react-table"
+import { Row, Table } from "@tanstack/react-table"
 import { useState } from "react"
 import { MoreHorizontal, Power } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,60 +15,77 @@ import {
 import { Data } from "../data/schema"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
+import { AuthService } from "@/services/api/auth.service"
+
+interface TableMeta<TData = unknown> {
+  setData: React.Dispatch<React.SetStateAction<TData[]>>;
+}
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
+  table: Table<TData>
 }
 
 export function DataTableRowActions<TData>({
   row,
+  table
 }: DataTableRowActionsProps<TData>) {
   const user = row.original as Data
   const [isUpdating, setIsUpdating] = useState(false)
 
   const handleStatusChange = async (nuevoEstado: boolean) => {
-    if (isUpdating) return
+    if (isUpdating) return;
     
-    const estadoAnterior = user.estado
-    const table = row.options.meta?.table
-    const data = table.options.data
+    const estadoAnterior = user.estado;
+    const table = row.options?.meta?.table;
+    
+    if (!table) {
+      console.error("Table reference is missing");
+      return;
+    }
+    
+    const onDataChange = table.options.meta?.onDataChange;
+    
+    if (!onDataChange) {
+      console.error("onDataChange function is missing");
+      return;
+    }
     
     try {
-      setIsUpdating(true)
-      // Actualización optimista
-      const newData: Data[] = data.map((u: Data) => 
+      setIsUpdating(true);
+      
+      // 1. Actualización optimista
+      const currentData = table.options.data as Data[];
+      const newData = currentData.map(u => 
         u.iduser === user.iduser ? { ...u, estado: nuevoEstado } : u
-      )
+      );
       
-      table.options.meta?.setUsers(newData)
+      onDataChange(newData); // Actualiza los datos padre
       
-      // Llamar a la API
-      if (table.options.meta?.onStatusChange) {
-        const success = await table.options.meta.onStatusChange(
-          user.iduser, 
-          nuevoEstado
-        )
-        
-        if (!success) throw new Error()
-        
-        toast.success(`Usuario ${nuevoEstado ? "activado" : "desactivado"}`, {
-          description: `El estado de ${user.datausuario.nombre} se actualizó correctamente`,
-        })
-      }
+      // 2. Llamada a la API
+      const success = await AuthService.updateUserStatus(user.iduser, nuevoEstado);
+      
+      if (!success) throw new Error("API update failed");
+      
+      toast.success(`Usuario ${nuevoEstado ? "activado" : "desactivado"}`, {
+        description: `El estado de ${user.datausuario.nombre} se actualizó correctamente`,
+      });
     } catch (error) {
       // Revertir cambios
-      const restoredData: Data[] = data.map((u: Data) => 
+      const currentData = table.options.data as Data[];
+      const restoredData = currentData.map(u => 
         u.iduser === user.iduser ? { ...u, estado: estadoAnterior } : u
-      )
+      );
       
-      table.options.meta?.setUsers(restoredData)
+      onDataChange(restoredData);
+      
       toast.error("Error al actualizar el estado", {
         description: "El estado se ha revertido al valor anterior",
-      })
+      });
     } finally {
-      setIsUpdating(false)
+      setIsUpdating(false);
     }
-  }
+  };
 
   return (
     <DropdownMenu>
@@ -86,13 +103,12 @@ export function DataTableRowActions<TData>({
           <span>Estado:</span>
           <Switch
             checked={user.estado}
-            onCheckedChange={handleStatusChange}
+            onCheckedChange={(checked) => { handleStatusChange(checked); }}
             disabled={isUpdating}
           />
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem>Editar usuario</DropdownMenuItem>
-        <DropdownMenuItem>Cambiar contraseña</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
