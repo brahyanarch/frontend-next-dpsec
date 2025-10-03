@@ -86,7 +86,7 @@ const RoleSelectionPage: React.FC = () => {
       {userRoles.length > 0 ? (
         <div className="w-[50%] space-y-8">
           <h2 className="text-2xl font-bold text-gray-900">
-            Selecciona un Rol y Subunidad
+            Escoge tu Rol y Sub Unidad
           </h2>
           <div className="grid grid-cols-3 gap-4">
             {userRoles.map((user, index) => (

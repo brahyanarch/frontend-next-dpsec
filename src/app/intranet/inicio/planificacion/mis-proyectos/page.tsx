@@ -25,11 +25,11 @@ export default function TaskPage() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const response = await ProjectService.getProjectsByUsuario();
-        if (!response) {
+        const data = await ProjectService.getProjectsByUsuario();
+        if (!data) {
           throw new Error("Error al cargar los datos.");
         }
-        const data = await response.json();
+        //const data = await response.json();
         const parsedData = z.array(ProjectSchema).parse(data);
         setData(parsedData);
       } catch (err) {
@@ -45,7 +45,44 @@ export default function TaskPage() {
 
 
 
+  const cambiarEstadoPrimerProyecto = async () => {
+  if (!data || data.length === 0) return;
 
+  try {
+    let num = 3;
+    const projectId = data[num].idproj;
+    const nuevoEstado = "ARCHIVADO";
+    
+    // Actualización optimista local
+    setData(prevData => {
+      if (!prevData) return null;
+      const newData = [...prevData];
+      newData[num] = { ...newData[num], estado: nuevoEstado };
+      return newData;
+    });
+
+    // Llamada a la API
+    //await ProjectService.updateProjectStatus(projectId, nuevoEstado);
+    
+    console.log("Estado cambiado correctamente");
+    // Opcional: Mostrar notificación de éxito
+    // toast.success("Estado actualizado correctamente");
+  } catch (error: any) {
+    console.error("Error al cambiar estado:", error);
+    
+    // Revertir cambios en caso de error
+    let num = 3;
+    setData(prevData => {
+      if (!prevData) return null;
+      const newData = [...prevData];
+      newData[num] = { ...newData[num], estado: data[num].estado }; // Restaurar estado original
+      return newData;
+    });
+
+    // Opcional: Mostrar notificación de error
+    // toast.error("Error al actualizar el estado");
+  }
+};
 
   return (
     <div className="mx-auto p-4 text-black dark:text-white space-y-4">
@@ -67,7 +104,13 @@ export default function TaskPage() {
           <PlusCircle />
         </Link>
       </Button>
-
+      <Button 
+        onClick={cambiarEstadoPrimerProyecto}
+        variant="outline"
+        disabled={!data || data.length === 0}
+      >
+        Archivar primer proyecto
+      </Button>
       <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
         <div className="flex items-center justify-between space-y-2">
           <div>
@@ -75,13 +118,16 @@ export default function TaskPage() {
               Proyectos de {user?.dataUser.nombre}
             </h2>
             <p className="text-muted-foreground">
-              Lista de todos los proyectos que por lo menos tienen una actividad.
+              Lista de todos los proyectos que por lo menos tienen una
+              actividad.
             </p>
           </div>
         </div>
-        { loading ? <SkeletonTable /> :
+        {loading ? (
+          <SkeletonTable />
+        ) : (
           <DataTable data={data || []} columns={columns} />
-        }
+        )}
         <Toaster position="bottom-right" />
       </div>
     </div>

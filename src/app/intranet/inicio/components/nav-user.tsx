@@ -108,10 +108,6 @@ export function NavUser() {
                 Cuenta
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <CreditCard />
-                Billetera
-              </DropdownMenuItem>
-              <DropdownMenuItem>
                 <Bell />
                 Notificaciones
               </DropdownMenuItem>

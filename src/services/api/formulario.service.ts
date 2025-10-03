@@ -11,7 +11,7 @@ export const FormularioService = {
   getForms: async (): Promise<Forms[]> => {
     try {
       const { data } = await apiClient.get('/api/form');
-      return data.forms;
+      return data;
     } catch (error) {
       throw new Error('Error al obtener formularios');
     }
@@ -81,5 +81,7 @@ export const FormularioService = {
     } catch (error) {
       throw new Error('Error al copiar formulario');
     }
-  }
+  },
+
+
 };

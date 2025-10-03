@@ -14,16 +14,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Plus, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { DataTable } from "./components/data-table";
 import { columns } from "./components/column";
-import { Data as Forms} from './data/schema';
-import { FormularioService } from '@/services/api/formulario.service';
+import { Data as Forms } from "./data/schema";
+import { FormularioService } from "@/services/api/formulario.service";
 import SkeletonTable from "@/components/skeletonTable";
 import { Separator } from "@radix-ui/react-separator";
 import { Toaster, toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 export function AlertDialogDemo() {
   const [nombre, setNombre] = useState("");
@@ -128,111 +129,116 @@ export default function Formulario() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-      const loadUsers = async () => {
-        try {
-          const data = await FormularioService.getForms();
-          if (data.length === 0) {
-            console.log("No se encontraron formularios");
-          }
-          if (!data) {
-            console.log("No se encontraron formularios");
-          }
-          
-          setFormularios(data);
-        } catch (err) {
-          setError("Error al cargar los usuarios");
-        } finally {
-          setLoading(false);
+    const loadForms = async () => {
+      try {
+        const data = await FormularioService.getForms();
+        if (data.length === 0) {
+          console.log("No se encontraron formularios");
         }
-      };
-  
-      loadUsers();
-    }, []);
+        if (!data) {
+          console.log("No se encontraron formularios");
+        }
+
+        setFormularios(data);
+      } catch (err) {
+        setError("Error al cargar los usuarios");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadForms();
+  }, []);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('success') === 'true') {
-      toast.success('Formulario creado exitosamente');
+    if (searchParams.get("success") === "true") {
+      toast.success("Formulario creado exitosamente");
       // Limpiar el query param
-      
+
       const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
+      window.history.replaceState({}, "", newUrl);
     }
-    if (searchParams.get('actualizado') === 'true') {
-      toast.success('Formulario actualizado exitosamente');
+    if (searchParams.get("actualizado") === "true") {
+      toast.success("Formulario actualizado exitosamente");
       // Limpiar el query param
-      
+
       const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
+      window.history.replaceState({}, "", newUrl);
     }
   }, []);
 
-// Función para actualización optimista
-const updateEstadoOptimista = async (idf: number, nuevoEstado: boolean) => {
-  try {
-    // Llamar a tu API
-    if (!formularios) return false;
-    const updatedData = formularios.map(form => {
-      if (form.idf === idf) return { ...form, estado: nuevoEstado };
-      if (form.estado) return { ...form, estado: false };
-      return form;
-    });
-    setFormularios(updatedData);
-    const response = await FormularioService.toggleEstado(idf, nuevoEstado);
-    if(!response)
-    {
-      throw new Error('Error al actualizar el estado');
-    }
-    return true;
-  } catch (error) {
-    setFormularios(formularios); // Rollback automático
+  // Función para actualización optimista
+  const updateEstadoOptimista = async (idf: number, nuevoEstado: boolean) => {
+    try {
+      // Llamar a tu API
+      if (!formularios) return false;
+      const updatedData = formularios.map((form) => {
+        if (form.idf === idf) return { ...form, estado: nuevoEstado };
+        if (form.estado) return { ...form, estado: false };
+        return form;
+      });
+      setFormularios(updatedData);
+      const response = await FormularioService.toggleEstado(idf, nuevoEstado);
+      if (!response) {
+        throw new Error("Error al actualizar el estado");
+      }
+      return true;
+    } catch (error) {
+      setFormularios(formularios); // Rollback automático
 
-    return false;
-  }
-}
+      return false;
+    }
+  };
 
   console.log("Formularios:", formularios); // Depuración
   return (
-    <div className="mx-auto p-4 text-black dark:text-white space-y-4">
-      <Label className="text-2xl font-bold dark:text-slate-200">
-        Formularios
-      </Label>
-      {/*<AlertDialogDemo />*/}
-      <Separator orientation="horizontal" className="w-full" />
-      <Button
-        variant="default"
-        className="bg-blue-600 hover:bg-blue-700 w-auto"
-        asChild
-      >
-        <Link
-          href="/intranet/inicio/sub-configuracion/formulario/nuevo-formulario"
-          className=""
+    <PermissionGuard requiredPermission="VER_FORMULARIOS">
+      <div className="mx-auto p-4 text-black dark:text-white space-y-4">
+        <Label className="text-2xl font-bold dark:text-slate-200">
+          Formularios
+        </Label>
+        {/*<AlertDialogDemo />*/}
+        <Separator orientation="horizontal" className="w-full" />
+        <Button
+          variant="default"
+          className="bg-blue-600 hover:bg-blue-700 w-auto"
+          asChild
         >
-          Agregar formulario
-          <PlusCircle />
-        </Link>
-      </Button>
+          <Link
+            href="/intranet/inicio/sub-configuracion/formulario/nuevo-formulario"
+            className=""
+          >
+            Agregar formulario
+            <PlusCircle />
+          </Link>
+        </Button>
 
-      <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
-        <div className="flex items-center justify-between space-y-2">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-left">
-              Formularios de esta sub unidad para subir proyectos
-            </h2>
-            <p className="text-muted-foreground">
-              Lista de todos los formularios configurados para esta sub unidad.
-            </p>
+        <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
+          <div className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-left">
+                Formularios de esta sub unidad para subir proyectos
+              </h2>
+              <p className="text-muted-foreground">
+                Lista de todos los formularios configurados para esta sub
+                unidad.
+              </p>
+            </div>
           </div>
-        </div>
-        { loading ? 
-        (<SkeletonTable /> 
+          {loading ? (
+            <SkeletonTable />
           ) : (
-          <DataTable data={formularios || []} columns={columns} onEstadoChange={updateEstadoOptimista}/>
-          )
-        }
-        
-        <Toaster position="bottom-right" />
+            <DataTable
+              data={formularios || []}
+              columns={columns}
+              onEstadoChange={updateEstadoOptimista}
+            />
+          )}
+
+          <Toaster position="bottom-right" />
+        </div>
       </div>
-    </div>
+    </PermissionGuard>
   );
 }

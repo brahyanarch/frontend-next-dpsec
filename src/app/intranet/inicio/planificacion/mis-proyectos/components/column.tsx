@@ -41,7 +41,7 @@ export const columns: ColumnDef<Project>[] = [
   {
     accessorKey: "idproj",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="id"/>
+      <DataTableColumnHeader column={column} title="id" />
     ),
     cell: ({ row }) => <div className="w-[80px]">{row.getValue("idproj")}</div>,
     enableSorting: true,
@@ -54,14 +54,13 @@ export const columns: ColumnDef<Project>[] = [
       <DataTableColumnHeader column={column} title="Nombre" />
     ),
     cell: ({ row }) => {
-
       return (
         <div className="flex space-x-2">
           <span className="max-w-[500px] truncate font-medium">
             {row.getValue("idString")}
           </span>
         </div>
-      )
+      );
     },
     meta: { label: "nombre" },
   },
@@ -74,17 +73,17 @@ export const columns: ColumnDef<Project>[] = [
       const status = estados.find(
         (status) => status.value === row.getValue("estado")
       );
-  
+
       if (!status) {
         return null;
       }
-  
+
       return (
         <div className="flex w-[150px] items-center">
-          <Badge className={`${status.color} ${status.borderColor} border ${status.textColor} uppercase pointer-events-none`}>
-            {status.icon && (
-              <status.icon className="mr-2 h-4 w-4" />
-            )}
+          <Badge
+            className={`${status.color} ${status.borderColor} border ${status.textColor} uppercase pointer-events-none`}
+          >
+            {status.icon && <status.icon className="mr-2 h-4 w-4" />}
             <span>{status.label}</span>
           </Badge>
         </div>
@@ -100,17 +99,19 @@ export const columns: ColumnDef<Project>[] = [
       <DataTableColumnHeader column={column} title="Fecha de Inicio" />
     ),
     cell: ({ row }) => {
-        const fecha = row.getValue<string>("createdAt"); // Especifica el tipo como string
-        const fechaFormateada = format(new Date(fecha), "d 'de' MMMM 'de' yyyy", { locale: es });
-        
+      const fecha = row.getValue<string>("createdAt"); // Especifica el tipo como string
+      const fechaFormateada = format(new Date(fecha), "d 'de' MMMM 'de' yyyy", {
+        locale: es,
+      });
+
       return (
         <div className="flex items-center">
           <span>{fechaFormateada}</span>
         </div>
-      )
+      );
     },
     filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
+      return value.includes(row.getValue(id));
     },
     meta: { label: "Fecha inicio" },
   },
@@ -120,16 +121,18 @@ export const columns: ColumnDef<Project>[] = [
       <DataTableColumnHeader column={column} title="Fecha final" />
     ),
     cell: ({ row }) => {
-        const fecha = row.getValue<string>("createdAt"); // Especifica el tipo como string
-        const fechaFormateada = format(new Date(fecha), "dd/MM/yyyy", { locale: es });
-        
+      const fecha = row.getValue<string>("createdAt"); // Especifica el tipo como string
+      const fechaFormateada = format(new Date(fecha), "dd/MM/yyyy", {
+        locale: es,
+      });
+
       return (
         <div className="flex space-x-2">
           <span className="max-w-[500px] truncate font-medium">
             {fechaFormateada}
           </span>
         </div>
-      )
+      );
     },
     meta: { label: "Fecha Fin" },
   },
@@ -140,16 +143,17 @@ export const columns: ColumnDef<Project>[] = [
     ),
     cell: ({ row }) => {
       const fecha = row.getValue<string>("createdAt"); // Especifica el tipo como string
-      const fechaFormateada = format(new Date(fecha), "dd/MM/yyyy", { locale: es });
+      const fechaFormateada = format(new Date(fecha), "dd/MM/yyyy", {
+        locale: es,
+      });
       return (
         <div className="flex items-center">
-          
           <span>{fechaFormateada}</span>
         </div>
-      )
+      );
     },
     filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
+      return value.includes(row.getValue(id));
     },
     meta: { label: "Fecha de creacion" }, // Usar meta para agregar label
   },
@@ -160,22 +164,26 @@ export const columns: ColumnDef<Project>[] = [
     ),
     cell: ({ row }) => {
       const fecha = row.getValue<string>("createdAt"); // Especifica el tipo como string
-      const fechaFormateada = format(new Date(fecha), "dd/MM/yyyy", { locale: es });
-      
+      const fechaFormateada = format(new Date(fecha), "dd/MM/yyyy", {
+        locale: es,
+      });
+
       return (
         <div className="flex items-center">
-          
           <span>{fechaFormateada}</span>
         </div>
-      )
+      );
     },
     filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
+      return value.includes(row.getValue(id));
     },
     meta: { label: "Fecha de actualización" }, // Usar meta para agregar label
   },
   {
     id: "actions",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Acciones" />
+    ),
     cell: ({ row }) => <DataTableRowActions row={row} />,
   },
-]
+];

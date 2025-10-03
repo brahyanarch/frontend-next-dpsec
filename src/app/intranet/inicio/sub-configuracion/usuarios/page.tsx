@@ -6,11 +6,11 @@ import { Data, DataSchema } from "./data/schema";
 import { AuthService } from "@/services/api/auth.service";
 import SkeletonTable from "@/components/skeletonTable";
 import { toast, Toaster } from "sonner";
-import { Label } from "@/components/ui/label"; 
-import { Separator } from "@/components/ui/separator"; 
-import { Button } from "@/components/ui/button"; 
-import Link from 'next/link' 
-import { ProgramaEstudio } from '@/types/index';
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ProgramaEstudio } from "@/types/index";
 import { PlusCircle } from "lucide-react";
 import {
   AlertDialog,
@@ -24,9 +24,21 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { FacultadService } from '@/services/api/facultad.service';
+import {
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import { FacultadService } from "@/services/api/facultad.service";
+import { PermissionGuard } from "@/components/PermissionGuard";
 interface FormData {
   dni: string;
   email: string;
@@ -36,19 +48,18 @@ interface FormData {
   idpe?: number; // idpe es opcional
 }
 
-
-
 export default function UsersPage() {
   const [data, setData] = useState<Data[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [programas, setProgramas] = useState<ProgramaEstudio[]>([]);
-  const [selectedProgram, setSelectedProgram] = useState<ProgramaEstudio | null>(null);
+  const [selectedProgram, setSelectedProgram] =
+    useState<ProgramaEstudio | null>(null);
   useEffect(() => {
     const loadUsers = async () => {
       try {
         const data = await AuthService.obtenerUsuarios();
-        
+
         setData(data);
       } catch (err) {
         setError("Error al cargar los usuarios");
@@ -59,7 +70,7 @@ export default function UsersPage() {
     const loadProgramEst = async () => {
       try {
         const data = await FacultadService.obtenerEscuelaProfesional();
-        
+
         setProgramas(data);
       } catch (err) {
         setError("Error al cargar los usuarios");
@@ -76,49 +87,47 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="mx-auto p-4 text-black dark:text-white space-y-4">
-      <Label className="text-2xl font-bold dark:text-slate-200">
-        Gestion de usuarios
-      </Label>
-      <Separator orientation="horizontal" className="w-full" />
-      
-      <AsignarUsuario />
-      <RegisterDataUsuario programas={programas} />
-      <Button
-        variant="default"
-        className="bg-blue-600 hover:bg-blue-700 w-auto"
-        asChild
-      >
-        
-      </Button>
+    <PermissionGuard requiredPermission="VER_USUARIOS">
+      <div className="mx-auto p-4 text-black dark:text-white space-y-4">
+        <Label className="text-2xl font-bold dark:text-slate-200">
+          Gestion de usuarios
+        </Label>
+        <Separator orientation="horizontal" className="w-full" />
 
-      <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
-        <div className="flex items-center justify-between space-y-2">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-left">
-              Usuarios de esta sub unidad
-            </h2>
-            <p className="text-muted-foreground">
-              Lista de todos los usuarios configurados para esta sub unidad.
-            </p>
+        <AsignarUsuario />
+        <RegisterDataUsuario programas={programas} />
+        <Button
+          variant="default"
+          className="bg-blue-600 hover:bg-blue-700 w-auto"
+          asChild
+        ></Button>
+
+        <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
+          <div className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-left">
+                Usuarios de esta sub unidad
+              </h2>
+              <p className="text-muted-foreground">
+                Lista de todos los usuarios configurados para esta sub unidad.
+              </p>
+            </div>
           </div>
+          {loading ? (
+            <SkeletonTable />
+          ) : (
+            <DataTable
+              data={data || []}
+              columns={columns}
+              onDataChange={handleDataChange}
+            />
+          )}
+          <Toaster position="bottom-right" />
         </div>
-        {loading ? (
-          <SkeletonTable />
-        ) : (
-          <DataTable
-            data={data || []}
-            columns={columns}
-            onDataChange={handleDataChange}
-          />
-        )}
-        <Toaster position="bottom-right" />
       </div>
-    </div>
+    </PermissionGuard>
   );
 }
-
-
 
 interface RegisterDataUsuarioProps {
   programas: ProgramaEstudio[];
@@ -134,7 +143,9 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
     idpe: undefined,
   });
 
-  const [errors, setErrors] = useState<{ [key in keyof FormData]?: string }>({});
+  const [errors, setErrors] = useState<{ [key in keyof FormData]?: string }>(
+    {}
+  );
   const [searchValue, setSearchValue] = useState("");
   //const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -147,10 +158,13 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
     const newErrors: { [key in keyof FormData]?: string } = {};
     if (!formData.dni) newErrors.dni = "El DNI es obligatorio";
     if (!formData.email) newErrors.email = "El email es obligatorio";
-    else if (!validateEmail(formData.email)) newErrors.email = "El email no es válido";
+    else if (!validateEmail(formData.email))
+      newErrors.email = "El email no es válido";
     if (!formData.nombre) newErrors.nombre = "El nombre es obligatorio";
-    if (!formData.aPaterno) newErrors.aPaterno = "El apellido paterno es obligatorio";
-    if (!formData.aMaterno) newErrors.aMaterno = "El apellido materno es obligatorio";
+    if (!formData.aPaterno)
+      newErrors.aPaterno = "El apellido paterno es obligatorio";
+    if (!formData.aMaterno)
+      newErrors.aMaterno = "El apellido materno es obligatorio";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -162,7 +176,7 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
   const handleProgramaChange = (value: string) => {
     setFormData({
       ...formData,
-      idpe: value ? Number(value) : undefined
+      idpe: value ? Number(value) : undefined,
     });
   };
 
@@ -177,7 +191,7 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
         formData.aMaterno,
         formData.idpe || 0
       );
-      
+
       if (!response || response.error) throw new Error("Error en el registro");
       toast.success("Usuario registrado exitosamente");
       //setIsDialogOpen(false);
@@ -195,7 +209,7 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
   };
 
   // Filtrar programas basado en la búsqueda
-  const filteredProgramas = programas.filter(programa =>
+  const filteredProgramas = programas.filter((programa) =>
     programa.nmPE.toLowerCase().includes(searchValue.toLowerCase())
   );
 
@@ -207,66 +221,80 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle>Registrar Nuevo Usuario</AlertDialogTitle>
-          <AlertDialogDescription>Ingresa los datos del usuario.</AlertDialogDescription>
+          <AlertDialogDescription>
+            Ingresa los datos del usuario.
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="space-y-3">
           <div>
-            <Input 
-              className={errors.dni ? "border-red-500" : ""} 
-              placeholder="DNI" 
-              name="dni" 
-              value={formData.dni} 
-              onChange={handleChange} 
+            <Input
+              className={errors.dni ? "border-red-500" : ""}
+              placeholder="DNI"
+              name="dni"
+              value={formData.dni}
+              onChange={handleChange}
             />
-            {errors.dni && <p className="text-red-500 text-xs mt-1">{errors.dni}</p>}
+            {errors.dni && (
+              <p className="text-red-500 text-xs mt-1">{errors.dni}</p>
+            )}
           </div>
-          
+
           <div>
-            <Input 
-              className={errors.email ? "border-red-500" : ""} 
-              placeholder="Email" 
-              name="email" 
-              value={formData.email} 
-              onChange={handleChange} 
+            <Input
+              className={errors.email ? "border-red-500" : ""}
+              placeholder="Email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
             />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+            )}
           </div>
-          
+
           <div>
-            <Input 
-              className={errors.nombre ? "border-red-500" : ""} 
-              placeholder="Nombre" 
-              name="nombre" 
-              value={formData.nombre} 
-              onChange={handleChange} 
+            <Input
+              className={errors.nombre ? "border-red-500" : ""}
+              placeholder="Nombre"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleChange}
             />
-            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
+            {errors.nombre && (
+              <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>
+            )}
           </div>
-          
+
           <div>
-            <Input 
-              className={errors.aPaterno ? "border-red-500" : ""} 
-              placeholder="Apellido Paterno" 
-              name="aPaterno" 
-              value={formData.aPaterno} 
-              onChange={handleChange} 
+            <Input
+              className={errors.aPaterno ? "border-red-500" : ""}
+              placeholder="Apellido Paterno"
+              name="aPaterno"
+              value={formData.aPaterno}
+              onChange={handleChange}
             />
-            {errors.aPaterno && <p className="text-red-500 text-xs mt-1">{errors.aPaterno}</p>}
+            {errors.aPaterno && (
+              <p className="text-red-500 text-xs mt-1">{errors.aPaterno}</p>
+            )}
           </div>
-          
+
           <div>
-            <Input 
-              className={errors.aMaterno ? "border-red-500" : ""} 
-              placeholder="Apellido Materno" 
-              name="aMaterno" 
-              value={formData.aMaterno} 
-              onChange={handleChange} 
+            <Input
+              className={errors.aMaterno ? "border-red-500" : ""}
+              placeholder="Apellido Materno"
+              name="aMaterno"
+              value={formData.aMaterno}
+              onChange={handleChange}
             />
-            {errors.aMaterno && <p className="text-red-500 text-xs mt-1">{errors.aMaterno}</p>}
+            {errors.aMaterno && (
+              <p className="text-red-500 text-xs mt-1">{errors.aMaterno}</p>
+            )}
           </div>
-          
+
           <div className="space-y-1">
-            <label className="text-sm font-medium">Programa de Estudio (opcional)</label>
+            <label className="text-sm font-medium">
+              Programa de Estudio (opcional)
+            </label>
             <Select
               value={formData.idpe?.toString() || ""}
               onValueChange={handleProgramaChange}
@@ -274,22 +302,22 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona un programa">
                   {/* Mostrar el nombre del programa seleccionado */}
-                  {formData.idpe 
-                    ? programas.find(p => p.idpe === formData.idpe)?.nmPE 
+                  {formData.idpe
+                    ? programas.find((p) => p.idpe === formData.idpe)?.nmPE
                     : ""}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="p-0">
                 <Command>
-                  <CommandInput 
-                    placeholder="Buscar programa..." 
+                  <CommandInput
+                    placeholder="Buscar programa..."
                     value={searchValue}
                     onValueChange={setSearchValue}
                   />
                   <CommandEmpty>No se encontraron programas</CommandEmpty>
-                  
+
                   <CommandGroup className="max-h-60 overflow-y-auto">
-                    <CommandItem 
+                    <CommandItem
                       value=""
                       onSelect={() => {
                         handleProgramaChange("");
@@ -300,8 +328,8 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
                       Ningún programa (limpiar selección)
                     </CommandItem>
                     {filteredProgramas.map((programa) => (
-                      <CommandItem 
-                        key={programa.idpe} 
+                      <CommandItem
+                        key={programa.idpe}
                         value={programa.idpe.toString()}
                         onSelect={() => {
                           handleProgramaChange(programa.idpe.toString());
@@ -320,14 +348,12 @@ export function RegisterDataUsuario({ programas }: RegisterDataUsuarioProps) {
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <Button onClick={handleSubmit} >Registrar</Button>
+          <Button onClick={handleSubmit}>Registrar</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
-
-
 
 export function AsignarUsuario() {
   const [nombre, setNombre] = useState("");
@@ -351,75 +377,78 @@ export function AsignarUsuario() {
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant="default"
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-        >
-          Agregar usuario
-          <PlusCircle />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-3xl text-center">
+    <PermissionGuard requiredPermission="ELIMINAR_USUARIO">
+      <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant="default"
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+          >
             Agregar usuario
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            En esta sección podrás agregar los datos de un usuario nuevo para que sea asignado su ro y su sub unidad.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+            <PlusCircle />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-3xl text-center">
+              Agregar usuario
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              En esta sección podrás agregar los datos de un usuario nuevo para
+              que sea asignado su ro y su sub unidad.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-        <Label className="text-lg">Información del usuario</Label>
+          <Label className="text-lg">Información del usuario</Label>
 
-        <div className="relative mt-4">
-          <Label
-            htmlFor="nombre-formulario"
-            className={`absolute left-3 transition-all duration-200 cursor-text ${
-              nombre || isFocusedNombre
-                ? "top-[-10px] text-sm bg-background px-1 text-primary"
-                : "top-3 text-muted-foreground"
-            } ${error ? "text-red-500" : ""}`}
-          >
-            Nombre del usuario <span className="text-red-600">*</span>
-          </Label>
-          <Input
-            id="nombre-formulario"
-            value={nombre}
-            onChange={(e) => {
-              setNombre(e.target.value);
-              if (error) setError(false); // Quitar error al escribir
-            }}
-            onFocus={() => setIsFocusedNombre(true)}
-            onBlur={() => setIsFocusedNombre(false)}
-            className={`pt-4 ${error ? "border-red-500" : ""}`}
-            placeholder={
-              isFocusedNombre ? "Escriba aqui el nombre del formulario" : ""
-            }
-          />
-          {error && (
-            <p className="mt-2 text-sm text-red-500">
-              ¡Ups! El nombre es obligatorio
-            </p>
-          )}
-        </div>
+          <div className="relative mt-4">
+            <Label
+              htmlFor="nombre-formulario"
+              className={`absolute left-3 transition-all duration-200 cursor-text ${
+                nombre || isFocusedNombre
+                  ? "top-[-10px] text-sm bg-background px-1 text-primary"
+                  : "top-3 text-muted-foreground"
+              } ${error ? "text-red-500" : ""}`}
+            >
+              Nombre del usuario <span className="text-red-600">*</span>
+            </Label>
+            <Input
+              id="nombre-formulario"
+              value={nombre}
+              onChange={(e) => {
+                setNombre(e.target.value);
+                if (error) setError(false); // Quitar error al escribir
+              }}
+              onFocus={() => setIsFocusedNombre(true)}
+              onBlur={() => setIsFocusedNombre(false)}
+              className={`pt-4 ${error ? "border-red-500" : ""}`}
+              placeholder={
+                isFocusedNombre ? "Escriba aqui el nombre del formulario" : ""
+              }
+            />
+            {error && (
+              <p className="mt-2 text-sm text-red-500">
+                ¡Ups! El nombre es obligatorio
+              </p>
+            )}
+          </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel
-            className="bg-red-600 text-white hover:bg-red-800 hover:text-white"
-            onClick={() => setError(false)}
-          >
-            Cancelar
-          </AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-green-600 hover:bg-green-800"
-            onClick={handleContinue}
-          >
-            Continuar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="bg-red-600 text-white hover:bg-red-800 hover:text-white"
+              onClick={() => setError(false)}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-green-600 hover:bg-green-800"
+              onClick={handleContinue}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PermissionGuard>
   );
 }

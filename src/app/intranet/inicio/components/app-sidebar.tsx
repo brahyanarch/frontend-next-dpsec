@@ -58,27 +58,23 @@ const data = {
       url: "/intranet/inicio/notificaciones",
       icon: PieChart,
     },
-    {
-      name: "Proyectos",
-      url: "/intranet/inicio/proyectos",
-      icon: Map,
-      
-    },
   ],
   navMain: [
     {
       title: "Sub configuración",
       url: "#",
       icon: Settings2,
-      
+      requiredPermission: "VER_SUBCONFIGURACION",
       items: [
         {
           title: "Formulario",
           url: "/intranet/inicio/sub-configuracion/formulario",
+          requiredPermission: "VER_FORMULARIOS",
         },
         {
           title: "Usuarios",
           url: "/intranet/inicio/sub-configuracion/usuarios",
+          requiredPermission: "VER_USUARIOS",
         },
       ],
     },
@@ -86,14 +82,17 @@ const data = {
       title: "Pagína principal",
       url: "#",
       icon: Bot,
+      requiredPermission: "CONFIG_PAGINA_PRINCIPAL",
       items: [
         {
           title: "Carrusel",
           url: "#",
+          requiredPermission: "CONFIG_CARRUSEL",
         },
         {
           title: "Avisos",
           url: "#",
+          requiredPermission: "CONFIG_AVISOS",
         },
       ],
     },
@@ -101,18 +100,22 @@ const data = {
       title: "Certificados",
       url: "#",
       icon: BookOpen,
+      requiredPermission: "VER_CERTIFICADOS",
       items: [
         {
           title: "Alumnos",
           url: "#",
+          requiredPermission: "VER_ALUMNOS",
         },
         {
           title: "Terceros",
           url: "#",
+          requiredPermission: "VER_TERCEROS",
         },
         {
           title: "Plantillas",
           url: "#",
+          requiredPermission: "VER_PLANTILLAS_CERTIFICADOS",
         },
       ],
     },
@@ -120,14 +123,17 @@ const data = {
       title: "Planificacion",
       url: "#",
       icon: SquareTerminal,
+      requiredPermission: "VER_PLANIFICACION",
       items: [
         {
           title: "Mis proyectos",
           url: "/intranet/inicio/planificacion/mis-proyectos",
+          requiredPermission: "VER_MIS_PROYECTOS",
         },
         {
           title: "Proyectos",
           url: "/intranet/inicio/planificacion/proyectos",
+          requiredPermission: "VER_PROYECTOS",
         },
       ],
     },

@@ -28,12 +28,19 @@ interface DataUser {
   APaterno: string;
   AMaterno: string;
   idpe: number | null;
-  prgest: number | null;
+  prgest: number | null; // corregir un prgest es un programa de estudio incluye nombre del programa y mas datos
+}
+
+interface Permiso {
+  id_per: number;
+  n_per: string;
+  abreviatura: string;
 }
 
 export interface UserData {
   usuario: Usuario;
   dataUser: DataUser;
+  permisos: Permiso[] | null;
   access: boolean;
 }
 
@@ -41,6 +48,7 @@ interface AuthContextType {
   user: UserData | null;
   loading: boolean;
   logout: () => void;
+  hasPermission: (permissionName: string) => boolean;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -48,7 +56,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  logout: () => {}
+  logout: () => {},
+  hasPermission: () => false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -102,8 +111,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     fetchTokenAndUser();
   }, []);
 
+  const hasPermission = (permissionName: string): boolean => {
+    if (!user?.access || !user?.permisos?.length) {
+      return false;
+    }
+    
+    return user.permisos.some(permiso => permiso.n_per === permissionName);
+    //return false; // Temporalmente permitimos todo
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

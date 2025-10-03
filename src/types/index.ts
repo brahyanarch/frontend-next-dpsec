@@ -66,3 +66,30 @@ export interface ProgramaEstudio {
   idpe: number;
   nmPE: string;
 }
+
+
+export interface Activity {
+  idActivi: number
+  name: string
+  fInit: string
+  fFin: string
+  estado: string
+  tipo: string
+  public: boolean
+}
+
+export interface Project {
+  idproj: number
+  plan?: string
+  estado: string
+  tipo: string
+  idString?: string
+  fInit?: string
+  fFin?: string
+  informeFinal?: string
+  actividad: Activity[]
+}
+
+export interface ProjectDetailProps {
+  project: Project
+}
