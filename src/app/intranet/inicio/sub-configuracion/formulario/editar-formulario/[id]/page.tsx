@@ -178,6 +178,8 @@ export const QuestionItem: React.FC<QuestionItemProps> = ({ question, updateQues
           if (!id) return;
           
           const data = await FormularioService.getFormById(id);
+          // validar si data tiene la estructura esperada
+          
           setNombre(data.name);
           
           const formattedQuestions = data.preguntas.map((q: any) => ({
@@ -276,6 +278,14 @@ export const QuestionItem: React.FC<QuestionItemProps> = ({ question, updateQues
         toast.error('Error al guardar el formulario');
       }
     };
+
+    if(formData.questions.length === 0){
+      return (
+        <div className="max-w-2xl mx-auto p-4 text-red-600">
+          No tienes acceso a este formulario o no existe
+        </div>
+      )
+    }
   
     return (
       <div className="max-w-2xl mx-auto p-4">

@@ -16,9 +16,9 @@ interface Rol {
 
 interface Usuario {
   iduser: number;
-  estado: boolean;
   subunidad: Subunidad;
   roles: Rol;
+  iddatauser: number;
 }
 
 interface DataUser {
@@ -41,6 +41,7 @@ export interface UserData {
   usuario: Usuario;
   dataUser: DataUser;
   permisos: Permiso[] | null;
+  usuarios: Usuario[] | null;
   access: boolean;
 }
 
@@ -118,6 +119,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     return user.permisos.some(permiso => permiso.n_per === permissionName);
     //return false; // Temporalmente permitimos todo
+  };
+
+  // funcion para hacer switch de usuario
+  const switchUser = async (userId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/switch-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId })
+      });
+      if (response.ok) {
+        const newUserData: UserData = await response.json();
+        if (newUserData.access) {
+          newUserData.dataUser.nombre = capitalizarNombre(newUserData.dataUser.nombre);
+          newUserData.dataUser.APaterno = capitalizarNombre(newUserData.dataUser.APaterno);
+          newUserData.dataUser.AMaterno = capitalizarNombre(newUserData.dataUser.AMaterno);
+          setUser(newUserData);
+        }
+      }
+    } catch (error) {
+      console.error("Error switching user:", error);
+    }
   };
 
   return (

@@ -76,6 +76,11 @@ const data = {
           url: "/intranet/inicio/sub-configuracion/usuarios",
           requiredPermission: "VER_USUARIOS",
         },
+        {
+          title: "Plantilla Documento",
+          url: "/intranet/inicio/sub-configuracion/plantilla-documento",
+          requiredPermission: "VER_PLANILLA_DOCUMENTO",
+        },
       ],
     },
     {

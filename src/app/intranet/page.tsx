@@ -14,7 +14,6 @@ import { AuthService } from "@/services/api/auth.service";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CircleUser } from "lucide-react";
 
-
 function RoleCard({ title, subtitle, onClick }: RoleProps) {
   return (
     <Card
@@ -51,6 +50,7 @@ const RoleSelectionPage: React.FC = () => {
       if (data.admin) {
         localStorage.setItem("token", data.token);
         setAdmin(true);
+        // logica de administrador general para la redireccion de panel de administrador
       } else {
         setUserRoles(data.users);
       }

@@ -43,8 +43,12 @@ export const FormularioService = {
   getFormById: async (id: string | number): Promise<any> => {
     try {
       const { data } = await apiClient.get(`/api/form/preguntas/${id}`);
+
       return data;
-    } catch (error) {
+    } catch (error:any) {
+      if (error.response?.status === 404) {
+      throw new Error("Formulario no encontrado");
+    }
       throw new Error('Error al obtener formulario');
     }
   },
