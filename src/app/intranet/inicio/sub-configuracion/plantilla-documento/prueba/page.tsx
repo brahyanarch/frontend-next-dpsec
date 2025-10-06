@@ -1,567 +1,220 @@
-// app/configuracion/document-template/page.tsx
-'use client';
+// app/page.tsx
+'use client'; // This must be a Client Component because it uses state and event handlers
+
 import { useState } from 'react';
+import LatexVisualEditor from './components/LatexVisualEditor';
+import { generateLatexCode } from './utils/LatexGenerator';
+import { DocumentElement } from './types/latex';
 
-type ContentItem = 
-  | { type: 'section'; title: string; content: ContentItem[] }
-  | { type: 'subsection'; title: string; content: ContentItem[] }
-  | { type: 'subsubsection'; title: string; content: ContentItem[] }
-  | { type: 'text'; content: string }
-  | { type: 'enumerate'; items: string[] }
-  | { type: 'itemize'; items: string[] }
-  | { type: 'table'; data: string[][] }
-  | { type: 'image'; url: string; caption: string; width?: string };
+export default function HomePage() {
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [compilationLog, setCompilationLog] = useState('');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
-export default function DocumentTemplate() {
-  const [documentContent, setDocumentContent] = useState<ContentItem[]>([]);
-  const [showLatex, setShowLatex] = useState(false);
-
-  const addItem = (type: ContentItem['type'], parentPath: number[] = []) => {
-    const newItem: ContentItem = (() => {
-      switch (type) {
-        case 'section':
-        case 'subsection':
-        case 'subsubsection':
-          return { type, title: '', content: [] };
-        case 'text':
-          return { type, content: '' };
-        case 'enumerate':
-        case 'itemize':
-          return { type, items: [''] };
-        case 'table':
-          return { type, data: [['', ''], ['', '']] };
-        case 'image':
-          return { type, url: '', caption: '', width: '0.8' };
-      }
-    })();
-
-    setDocumentContent(prev => {
-      const newContent = JSON.parse(JSON.stringify(prev));
-      let currentLevel = newContent;
+  // This function would receive the elements from your LatexVisualEditor
+  const handleCompile = async (elements: DocumentElement[]) => {
+    setIsCompiling(true);
+    setCompilationLog('Compiling...');
+    
+    try {
+      // 1. Generate LaTeX code from editor elements
+      const latexCode = generateLatexCode(elements);
+      console.log('Generated LaTeX:', latexCode); // For debugging
       
-      for (const index of parentPath) {
-        const section = currentLevel[index] as Extract<ContentItem, { content: ContentItem[] }>;
-        currentLevel = section.content;
+      // 2. Send to your compilation API
+      const response = await fetch('/api/compile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          latexCode: latexCode,
+          dependencies: ['graphicx', 'amsmath', 'hyperref', 'booktabs']
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.logs || 'Compilation failed');
       }
+
+      // 3. Handle the PDF response
+      const pdfBlob = await response.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      setPdfUrl(url);
+      setCompilationLog('Compilation successful!');
       
-      currentLevel.push(newItem);
-      return newContent;
-    });
+    } catch (error) {
+      console.error('Compilation error:', error);
+      setCompilationLog(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCompiling(false);
+    }
   };
 
-  const removeItem = (path: number[]) => {
-    setDocumentContent(prev => {
-      const newContent = JSON.parse(JSON.stringify(prev));
-      
-      if (path.length === 1) {
-        // Eliminar elemento del nivel raíz
-        newContent.splice(path[0], 1);
-        return newContent;
-      }
-      
-      // Eliminar elemento anidado
-      let current = newContent;
-      for (let i = 0; i < path.length - 1; i++) {
-        const section = current[path[i]] as Extract<ContentItem, { content: ContentItem[] }>;
-        current = section.content;
-      }
-      
-      current.splice(path[path.length - 1], 1);
-      return newContent;
-    });
+  const handleNewDocument = () => {
+    // Logic to reset the editor to initial state
+    setPdfUrl(null);
+    setCompilationLog('');
   };
 
-  const updateItem = (path: number[], updates: Partial<ContentItem>) => {
-    setDocumentContent(prev => {
-      const newContent = JSON.parse(JSON.stringify(prev));
-      let current = newContent;
-      
-      for (let i = 0; i < path.length - 1; i++) {
-        const section = current[path[i]] as Extract<ContentItem, { content: ContentItem[] }>;
-        current = section.content;
-      }
-      
-      current[path[path.length - 1]] = { ...current[path[path.length - 1]], ...updates };
-      return newContent;
-    });
+  const handleSaveTemplate = () => {
+    // Logic to save the current document as a template
+    console.log('Saving template...');
   };
 
-  const generateLatexCode = (content: ContentItem[] = documentContent, level: number = 0): string => {
-    return content.map(item => {
-      const indent = '  '.repeat(level);
-      
-      switch (item.type) {
-        case 'section':
-          return `${indent}\\section{${item.title || 'Título de sección'}}\n${generateLatexCode(item.content, level + 1)}`;
-        
-        case 'subsection':
-          return `${indent}\\subsection{${item.title || 'Título de subsección'}}\n${generateLatexCode(item.content, level + 1)}`;
-        
-        case 'subsubsection':
-          return `${indent}\\subsubsection{${item.title || 'Título de subsubsección'}}\n${generateLatexCode(item.content, level + 1)}`;
-        
-        case 'text':
-          return `${indent}${item.content}`;
-        
-        case 'enumerate':
-          const enumerateItems = item.items.filter(i => i.trim()).map(i => `${indent}  \\item ${i}`).join('\n');
-          return item.items.filter(i => i.trim()).length > 0 
-            ? `${indent}\\begin{enumerate}\n${enumerateItems}\n${indent}\\end{enumerate}`
-            : '';
-        
-        case 'itemize':
-          const itemizeItems = item.items.filter(i => i.trim()).map(i => `${indent}  \\item ${i}`).join('\n');
-          return item.items.filter(i => i.trim()).length > 0
-            ? `${indent}\\begin{itemize}\n${itemizeItems}\n${indent}\\end{itemize}`
-            : '';
-        
-        case 'table':
-          if (item.data.length === 0 || !item.data.some(row => row.some(cell => cell.trim()))) return '';
-          const columns = 'l'.repeat(item.data[0].length);
-          const tableRows = item.data
-            .filter(row => row.some(cell => cell.trim()))
-            .map(row => `${indent}  ${row.join(' & ')} \\\\`)
-            .join('\n');
-          return `${indent}\\begin{tabular}{${columns}}\n${tableRows}\n${indent}\\end{tabular}`;
-        
-        case 'image':
-          if (!item.url.trim()) return '';
-          const width = item.width ? `[width=${item.width}\\textwidth]` : '';
-          const caption = item.caption ? `\n${indent}\\caption{${item.caption}}` : '';
-          return `${indent}\\begin{figure}[h]\n${indent}  \\centering\n${indent}  \\includegraphics${width}{${item.url}}${caption}\n${indent}\\end{figure}`;
-        
-        default:
-          return '';
-      }
-    }).filter(item => item.trim()).join('\n\n');
-  };
-
-  const renderContent = (content: ContentItem[], path: number[] = []) => {
-    return content.map((item, index) => {
-      const currentPath = [...path, index];
-      
-      const renderDeleteButton = () => (
-        <button
-          className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs ml-2"
-          onClick={() => removeItem(currentPath)}
-          title="Eliminar elemento"
-        >
-          🗑️ Eliminar
-        </button>
-      );
-
-      const renderAddButtons = (showSubsections: boolean = true) => (
-        <div className="flex gap-2 mt-2 flex-wrap">
-          {showSubsections && (
-            <>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <h1 className="text-2xl font-bold text-gray-900">
+                LaTeX Document Orchestrator
+              </h1>
+              <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                Beta
+              </span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
               <button
-                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                onClick={() => addItem('subsection', currentPath)}
+                onClick={handleNewDocument}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                + Subsección
+                New Document
               </button>
+              
               <button
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
-                onClick={() => addItem('subsubsection', currentPath)}
+                onClick={handleSaveTemplate}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                + Subsubsección
+                Save as Template
               </button>
-            </>
-          )}
-          <button
-            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
-            onClick={() => addItem('text', currentPath)}
-          >
-            + Texto
-          </button>
-          <button
-            className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-sm"
-            onClick={() => addItem('enumerate', currentPath)}
-          >
-            + Lista Ordenada
-          </button>
-          <button
-            className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm"
-            onClick={() => addItem('itemize', currentPath)}
-          >
-            + Lista No Ordenada
-          </button>
-          <button
-            className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded text-sm"
-            onClick={() => addItem('table', currentPath)}
-          >
-            + Tabla
-          </button>
-          <button
-            className="bg-pink-500 hover:bg-pink-600 text-white px-3 py-1 rounded text-sm"
-            onClick={() => addItem('image', currentPath)}
-          >
-            + Imagen
-          </button>
+            </div>
+          </div>
         </div>
-      );
+      </header>
 
-      switch (item.type) {
-        case 'section':
-          return (
-            <div key={index} className="ml-0 my-4 p-4 border-l-4 border-blue-500 bg-blue-50 rounded">
-              <div className="flex items-center justify-between mb-2">
-                <input
-                  className="text-xl font-bold block w-full p-2 border rounded"
-                  value={item.title}
-                  onChange={(e) => updateItem(currentPath, { title: e.target.value })}
-                  placeholder="Título de sección"
-                />
-                {renderDeleteButton()}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Editor Section */}
+          <div className="flex-1">
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="border-b border-gray-200 px-6 py-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Visual LaTeX Editor
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Build your document visually without writing LaTeX code
+                </p>
               </div>
-              {renderContent(item.content, currentPath)}
-              {renderAddButtons(true)}
+              
+              <div className="p-6">
+                <LatexVisualEditor onCompile={handleCompile} />
+              </div>
             </div>
-          );
+          </div>
 
-        case 'subsection':
-          return (
-            <div key={index} className="ml-4 my-3 p-3 border-l-4 border-green-500 bg-green-50 rounded">
-              <div className="flex items-center justify-between mb-2">
-                <input
-                  className="text-lg font-semibold block w-full p-2 border rounded"
-                  value={item.title}
-                  onChange={(e) => updateItem(currentPath, { title: e.target.value })}
-                  placeholder="Título de subsección"
-                />
-                {renderDeleteButton()}
-              </div>
-              {renderContent(item.content, currentPath)}
-              {renderAddButtons(true)}
-            </div>
-          );
-
-        case 'subsubsection':
-          return (
-            <div key={index} className="ml-8 my-2 p-2 border-l-4 border-yellow-500 bg-yellow-50 rounded">
-              <div className="flex items-center justify-between mb-2">
-                <input
-                  className="text-md font-medium block w-full p-2 border rounded"
-                  value={item.title}
-                  onChange={(e) => updateItem(currentPath, { title: e.target.value })}
-                  placeholder="Título de subsubsección"
-                />
-                {renderDeleteButton()}
-              </div>
-              {renderContent(item.content, currentPath)}
-              {renderAddButtons(false)}
-            </div>
-          );
-
-        case 'text':
-          return (
-            <div key={index} className="ml-4 my-2 p-3 bg-white border rounded">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-sm text-gray-500 font-medium">Texto</span>
-                {renderDeleteButton()}
-              </div>
-              <textarea
-                className="w-full p-2 border rounded"
-                value={item.content}
-                onChange={(e) => updateItem(currentPath, { content: e.target.value })}
-                placeholder="Escribe tu texto aquí..."
-                rows={3}
-              />
-            </div>
-          );
-
-        case 'enumerate':
-          return (
-            <div key={index} className="ml-4 my-2 p-3 bg-white border rounded">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-500 font-medium">Lista Ordenada</span>
-                {renderDeleteButton()}
-              </div>
-              <ol className="list-decimal list-inside">
-                {item.items.map((listItem, itemIndex) => (
-                  <li key={itemIndex} className="my-1">
-                    <input
-                      className="w-full p-1 border-b border-gray-300 focus:border-blue-500 focus:outline-none"
-                      value={listItem}
-                      onChange={(e) => {
-                        const newItems = [...item.items];
-                        newItems[itemIndex] = e.target.value;
-                        updateItem(currentPath, { items: newItems });
-                      }}
-                      placeholder={`Elemento ${itemIndex + 1}`}
-                    />
-                  </li>
-                ))}
-              </ol>
-              <button
-                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded mt-1 text-xs"
-                onClick={() => updateItem(currentPath, { 
-                  items: [...item.items, ''] 
-                })}
-              >
-                + Agregar elemento
-              </button>
-            </div>
-          );
-
-        case 'itemize':
-          return (
-            <div key={index} className="ml-4 my-2 p-3 bg-white border rounded">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-500 font-medium">Lista No Ordenada</span>
-                {renderDeleteButton()}
-              </div>
-              <ul className="list-disc list-inside">
-                {item.items.map((listItem, itemIndex) => (
-                  <li key={itemIndex} className="my-1">
-                    <input
-                      className="w-full p-1 border-b border-gray-300 focus:border-blue-500 focus:outline-none"
-                      value={listItem}
-                      onChange={(e) => {
-                        const newItems = [...item.items];
-                        newItems[itemIndex] = e.target.value;
-                        updateItem(currentPath, { items: newItems });
-                      }}
-                      placeholder={`Elemento ${itemIndex + 1}`}
-                    />
-                  </li>
-                ))}
-              </ul>
-              <button
-                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded mt-1 text-xs"
-                onClick={() => updateItem(currentPath, { 
-                  items: [...item.items, ''] 
-                })}
-              >
-                + Agregar elemento
-              </button>
-            </div>
-          );
-
-        case 'table':
-          return (
-            <div key={index} className="ml-4 my-3 p-3 bg-white border rounded">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-500 font-medium">Tabla</span>
-                {renderDeleteButton()}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="border-collapse border border-gray-400 min-w-full">
-                  <tbody>
-                    {item.data.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <td key={cellIndex} className="border border-gray-300 p-1">
-                            <input
-                              className="w-full p-1 min-w-[80px] focus:outline-none focus:border-blue-500"
-                              value={cell}
-                              onChange={(e) => {
-                                const newData = item.data.map(r => [...r]);
-                                newData[rowIndex][cellIndex] = e.target.value;
-                                updateItem(currentPath, { data: newData });
-                              }}
-                              placeholder={`Celda ${rowIndex + 1}-${cellIndex + 1}`}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex gap-2 mt-2">
+          {/* Preview & Output Section */}
+          <div className="lg:w-2/5 flex flex-col gap-6">
+            {/* Compilation Controls */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Document Compilation
+              </h3>
+              
+              <div className="space-y-4">
                 <button
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-                  onClick={() => updateItem(currentPath, {
-                    data: [...item.data, Array(item.data[0].length).fill('')]
-                  })}
+                  onClick={() => handleCompile([])} // You'll need to pass actual elements from your editor
+                  disabled={isCompiling}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
-                  + Fila
+                  {isCompiling ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Compiling...
+                    </span>
+                  ) : 'Compile to PDF'}
                 </button>
-                <button
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-                  onClick={() => updateItem(currentPath, {
-                    data: item.data.map(row => [...row, ''])
-                  })}
-                >
-                  + Columna
-                </button>
-              </div>
-            </div>
-          );
 
-        case 'image':
-          return (
-            <div key={index} className="ml-4 my-3 p-3 bg-white border rounded">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-500 font-medium">Imagen</span>
-                {renderDeleteButton()}
-              </div>
-              <div className="space-y-2">
-                <input
-                  type="url"
-                  className="w-full p-2 border rounded"
-                  value={item.url}
-                  onChange={(e) => updateItem(currentPath, { url: e.target.value })}
-                  placeholder="URL de la imagen"
-                />
-                <input
-                  className="w-full p-2 border rounded"
-                  value={item.caption}
-                  onChange={(e) => updateItem(currentPath, { caption: e.target.value })}
-                  placeholder="Pie de imagen (opcional)"
-                />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Ancho:</span>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="1"
-                    step="0.1"
-                    value={item.width || '0.8'}
-                    onChange={(e) => updateItem(currentPath, { width: e.target.value })}
-                    className="w-32"
-                  />
-                  <span className="text-sm text-gray-600">{(parseFloat(item.width || '0.8') * 100).toFixed(0)}%</span>
-                </div>
-                {item.url && (
-                  <div className="mt-2 p-2 border rounded bg-gray-50">
-                    <img 
-                      src={item.url} 
-                      alt={item.caption || 'Imagen'} 
-                      className="max-w-full h-auto mx-auto"
-                      style={{ maxWidth: `${(parseFloat(item.width || '0.8') * 100)}%` }}
-                    />
-                    {item.caption && (
-                      <p className="text-center text-sm text-gray-600 mt-2">{item.caption}</p>
-                    )}
+                {/* Compilation Status */}
+                {compilationLog && (
+                  <div className={`p-3 rounded-md text-sm ${
+                    compilationLog.includes('Error') 
+                      ? 'bg-red-50 text-red-700 border border-red-200' 
+                      : compilationLog.includes('successful')
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                  }`}>
+                    <div className="font-medium">
+                      {compilationLog.includes('Error') ? 'Compilation Failed' : 
+                       compilationLog.includes('successful') ? 'Success' : 'Status'}
+                    </div>
+                    <div className="mt-1">{compilationLog}</div>
                   </div>
                 )}
               </div>
             </div>
-          );
 
-        default:
-          return null;
-      }
-    });
-  };
+            {/* PDF Preview */}
+            {pdfUrl && (
+              <div className="bg-white rounded-lg shadow-lg flex-1 flex flex-col">
+                <div className="border-b border-gray-200 px-6 py-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    PDF Preview
+                  </h3>
+                </div>
+                
+                <div className="flex-1 p-4">
+                  <iframe 
+                    src={pdfUrl}
+                    className="w-full h-full min-h-[500px] border border-gray-200 rounded-md"
+                    title="Compiled PDF Document"
+                  />
+                  
+                  <div className="mt-4 flex justify-end space-x-3">
+                    <a
+                      href={pdfUrl}
+                      download="document.pdf"
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors duration-200"
+                    >
+                      Download PDF
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
 
-  const latexCode = generateLatexCode();
-
-  return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <h1 className="text-3xl font-bold mb-6">Plantilla Documentaria LaTeX</h1>
-      
-      <div className="flex gap-2 mb-6 flex-wrap">
-        <button 
-          onClick={() => addItem('section')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition"
-        >
-          + Sección
-        </button>
-        <button 
-          onClick={() => addItem('text')}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
-        >
-          + Texto
-        </button>
-        <button 
-          onClick={() => addItem('enumerate')}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition"
-        >
-          + Lista Ordenada
-        </button>
-        <button 
-          onClick={() => addItem('itemize')}
-          className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded transition"
-        >
-          + Lista No Ordenada
-        </button>
-        <button 
-          onClick={() => addItem('table')}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded transition"
-        >
-          + Tabla
-        </button>
-        <button 
-          onClick={() => addItem('image')}
-          className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded transition"
-        >
-          + Imagen
-        </button>
-        <button 
-          onClick={() => setShowLatex(!showLatex)}
-          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition"
-        >
-          {showLatex ? 'Ocultar LaTeX' : 'Ver Código LaTeX'}
-        </button>
-        {documentContent.length > 0 && (
-          <button 
-            onClick={() => setDocumentContent([])}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition"
-          >
-            Limpiar Todo
-          </button>
-        )}
-      </div>
-
-      {showLatex && (
-        <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-          <h3 className="font-bold mb-2">Código LaTeX Generado:</h3>
-          <pre className="text-sm bg-white p-4 rounded border overflow-x-auto max-h-96 overflow-y-auto">
-            {latexCode || "// Agrega contenido para generar código LaTeX"}
-          </pre>
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => navigator.clipboard.writeText(latexCode)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-            >
-              Copiar Código LaTeX
-            </button>
-            <button
-              onClick={() => {
-                const blob = new Blob([latexCode], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'documento.tex';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
-            >
-              Descargar Archivo .tex
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="border rounded-lg p-6 bg-gray-50 shadow-sm">
-        {documentContent.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg mb-4">
-              Comienza agregando un elemento a tu documento
-            </p>
-            <div className="flex gap-2 justify-center flex-wrap">
-              <button 
-                onClick={() => addItem('section')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition"
-              >
-                + Sección
-              </button>
-              <button 
-                onClick={() => addItem('text')}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
-              >
-                + Texto
-              </button>
+            {/* Quick Actions */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Quick Actions
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button className="p-3 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                  Import .bib File
+                </button>
+                <button className="p-3 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                  Manage Templates
+                </button>
+                <button className="p-3 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                  Export Project
+                </button>
+                <button className="p-3 border border-gray-200 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                  Project Settings
+                </button>
+              </div>
             </div>
           </div>
-        ) : (
-          renderContent(documentContent)
-        )}
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
