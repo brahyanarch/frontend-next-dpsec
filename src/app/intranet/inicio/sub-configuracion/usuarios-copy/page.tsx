@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { DataTable } from "./components/data-table";
 import { columns } from "./components/column";
 import { Data, DataSchema } from "./data/schema";
-import { obtenerUsuarios } from "@/services/api/auth.service";
+import { AuthService } from "@/services/api/auth.service";
 import SkeletonTable from "@/components/skeletonTable";
 import { toast, Toaster } from "sonner";
 import { Label } from "@/components/ui/label"; 
@@ -40,7 +40,7 @@ export default function UsersPage() {
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        const data = await obtenerUsuarios();
+        const data = await AuthService.obtenerUsuarios();
 
         setData(data);
       } catch (err) {
