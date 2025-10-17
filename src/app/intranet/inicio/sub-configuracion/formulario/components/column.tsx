@@ -162,7 +162,7 @@ export const columns: ColumnDef<Data>[] = [
 
       return (
         <div className="flex items-center">
-          <Toaster position="bottom-right" />
+          {/*<Toaster position="bottom-right" />*/}
 
           <Input
             type="radio"

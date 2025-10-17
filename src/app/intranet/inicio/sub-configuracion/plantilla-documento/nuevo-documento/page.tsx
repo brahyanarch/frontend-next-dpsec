@@ -1,136 +1,358 @@
-// components/ElementForm.tsx
-'use client';
+"use client"
+import React, { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRouter, usePathname } from 'next/navigation';
+import { Label } from "@/components/ui/label";
+import { Separator } from '@/components/ui/separator';
+import { DocumentosService } from '@/services/api/documentos.service';
+import { Toaster, toast } from "sonner"
 
-import {  } from '../data/schema';
+export type DocumentElementType = 'section' | 'subsection' | 'subsubsection' | 'itemize' | 'enumerate' | 'text';
 
-interface ElementFormProps {
-  currentElement: Partial<DocumentElement>;
-  updateCurrentElement: (updates: Partial<DocumentElement>) => void;
-  addElement: () => void;
-  addItem: () => void;
-  updateItem: (index: number, value: string) => void;
-  removeItem: (index: number) => void;
+export interface DocumentElement {
+  id: string;
+  type: DocumentElementType;
+  contenido: string;
+  items: string[];
+  iseditable: boolean;
+  orden: number;
 }
 
-const ElementForm: React.FC<ElementFormProps> = ({
-  currentElement,
-  updateCurrentElement,
-  addElement,
-  addItem,
-  updateItem,
-  removeItem
-}) => {
-  const showContentField = currentElement.type && 
-    ['section', 'subsection', 'subsubsection', 'text'].includes(currentElement.type);
+export interface DocumentData {
+  title: string;
+  elements: DocumentElement[];
+}
 
-  const showItemsField = currentElement.type && 
-    ['itemize', 'enumerate'].includes(currentElement.type);
+interface DocumentElementItemProps {
+  element: DocumentElement;
+  updateElement: (id: string, updates: Partial<DocumentElement>) => void;
+  deleteElement: (id: string) => void;
+  moveElement: (id: string, direction: 'up' | 'down') => void;
+}
+
+export const DocumentElementItem: React.FC<DocumentElementItemProps> = ({ 
+  element, 
+  updateElement, 
+  deleteElement,
+  moveElement 
+}) => {
+  const handleTypeChange = (value: string) => {
+    updateElement(element.id, { 
+      type: value as DocumentElement['type'],
+      // Reset items cuando cambia el tipo, excepto para itemize y enumerate
+      items: (value === 'itemize' || value === 'enumerate') ? [''] : []
+    });
+  };
 
   return (
-    <div className="space-y-4 p-4 border border-gray-200 rounded-md bg-gray-50">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Tipo de elemento
-          </label>
-          <select
-            value={currentElement.type || ''}
-            onChange={(e) => updateCurrentElement({ 
-              type: e.target.value as DocumentElement['type'],
-              contenido: '',
-              items: ['']
-            })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Selecciona un tipo</option>
-            <option value="section">Sección</option>
-            <option value="subsection">Subsección</option>
-            <option value="subsubsection">Subsubsección</option>
-            <option value="text">Texto</option>
-            <option value="itemize">Lista con viñetas</option>
-            <option value="enumerate">Lista numerada</option>
-          </select>
-        </div>
-
-        {showContentField && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contenido
-            </label>
-            <input
-              type="text"
-              value={currentElement.contenido || ''}
-              onChange={(e) => updateCurrentElement({ contenido: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={
-                currentElement.type === 'text' 
-                  ? 'Ingresa el texto' 
-                  : 'Ingresa el título'
-              }
-            />
-          </div>
-        )}
+    <div className="mb-4 p-4 border rounded bg-white dark:bg-slate-800">
+      <div className="flex gap-2 mb-2">
+        <Button 
+          onClick={() => moveElement(element.id, 'up')} 
+          variant="outline" 
+          size="sm"
+          disabled={element.orden === 1}
+        >
+          ↑
+        </Button>
+        <Button 
+          onClick={() => moveElement(element.id, 'down')} 
+          variant="outline" 
+          size="sm"
+        >
+          ↓
+        </Button>
+        <span className="flex items-center px-2 text-sm text-slate-500">
+          Orden: {element.orden}
+        </span>
       </div>
 
-      {showItemsField && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Elementos de la lista
-          </label>
-          <div className="space-y-2">
-            {(currentElement.items || []).map((item, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="text"
-                  value={item}
-                  onChange={(e) => updateItem(index, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Elemento de la lista"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  disabled={(currentElement.items || []).length <= 1}
-                  className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  -
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={addItem}
-            className="mt-2 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+      <Select onValueChange={handleTypeChange} value={element.type}>
+        <SelectTrigger className="mb-2">
+          <SelectValue placeholder="Tipo de elemento" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="section">Sección</SelectItem>
+          <SelectItem value="subsection">Subsección</SelectItem>
+          <SelectItem value="subsubsection">Subsubsección</SelectItem>
+          <SelectItem value="itemize">Lista con viñetas</SelectItem>
+          <SelectItem value="enumerate">Lista numerada</SelectItem>
+          <SelectItem value="text">Texto simple</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Input
+        type="text"
+        value={element.contenido}
+        onChange={(e) => updateElement(element.id, { contenido: e.target.value })}
+        placeholder={
+          element.type === 'section' ? "Título de sección" :
+          element.type === 'subsection' ? "Título de subsección" :
+          element.type === 'subsubsection' ? "Título de subsubsección" :
+          element.type === 'text' ? "Texto del párrafo" :
+          "Título (opcional)"
+        }
+        className="mb-2"
+      />
+
+      {(element.type === 'itemize' || element.type === 'enumerate') && (
+        <div className="mb-2">
+          <Label className="mb-2 block">Elementos de la lista:</Label>
+          {element.items?.map((item, index) => (
+            <div key={index} className="flex mb-2 gap-2">
+              <Input
+                type="text"
+                value={item}
+                onChange={(e) => {
+                  const newItems = [...(element.items || [])];
+                  newItems[index] = e.target.value;
+                  updateElement(element.id, { items: newItems });
+                }}
+                placeholder={`Elemento ${index + 1}`}
+              />
+              <Button 
+                onClick={() => {
+                  const newItems = element.items?.filter((_, i) => i !== index);
+                  updateElement(element.id, { items: newItems });
+                }} 
+                variant="destructive"
+                size="sm"
+              >
+                Eliminar
+              </Button>
+            </div>
+          ))}
+          <Button 
+            onClick={() => {
+              const newItems = [...(element.items || []), ''];
+              updateElement(element.id, { items: newItems });
+            }} 
+            variant="outline" 
+            className="mt-2"
           >
-            Agregar elemento
-          </button>
+            Agregar Elemento
+          </Button>
         </div>
       )}
 
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="element-editable"
-          checked={currentElement.iseditable || false}
-          onChange={(e) => updateCurrentElement({ iseditable: e.target.checked })}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-        />
-        <label htmlFor="element-editable" className="ml-2 block text-sm text-gray-700">
-          ¿Es editable?
-        </label>
+      <div className="flex justify-between items-center mt-3">
+        <div className="flex items-center gap-2">
+          <Label htmlFor={`editable-${element.id}`}>Editable</Label>
+          <input
+            id={`editable-${element.id}`}
+            type="checkbox"
+            checked={element.iseditable}
+            onChange={(e) => updateElement(element.id, { iseditable: e.target.checked })}
+            className="h-4 w-4"
+          />
+        </div>
+        
+        <Button 
+          onClick={() => deleteElement(element.id)} 
+          variant="destructive"
+        >
+          Eliminar Elemento
+        </Button>
       </div>
-
-      <button
-        type="button"
-        onClick={addElement}
-        disabled={!currentElement.type}
-        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Agregar Elemento
-      </button>
     </div>
   );
 };
 
-export default ElementForm;
+interface AddElementButtonProps {
+  addElement: (type: DocumentElementType) => void;
+}
+
+export const AddElementButton: React.FC<AddElementButtonProps> = ({ addElement }) => {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className='bg-blue-600 text-white'>
+          Agregar Elemento
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64">
+        <div className="grid gap-2">
+          <Button onClick={() => addElement('section')} variant="outline">
+            Sección
+          </Button>
+          <Button onClick={() => addElement('subsection')} variant="outline">
+            Subsección
+          </Button>
+          <Button onClick={() => addElement('subsubsection')} variant="outline">
+            Subsubsección
+          </Button>
+          <Button onClick={() => addElement('itemize')} variant="outline">
+            Lista con viñetas
+          </Button>
+          <Button onClick={() => addElement('enumerate')} variant="outline">
+            Lista numerada
+          </Button>
+          <Button onClick={() => addElement('text')} variant="outline">
+            Texto simple
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+export const DocumentBuilder: React.FC = () => {
+  const [documentData, setDocumentData] = useState<DocumentData>({
+    title: '',
+    elements: [],
+  });
+  const [nombre, setNombre] = useState("");
+  const [isFocusedNombre, setIsFocusedNombre] = useState(false);
+  const [error, setError] = useState(false);
+  const router = useRouter();
+
+  const addElement = (type: DocumentElementType) => {
+    const newElement: DocumentElement = {
+      id: uuidv4(),
+      type,
+      contenido: '',
+      items: type === 'itemize' || type === 'enumerate' ? [''] : [],
+      iseditable: false,
+      orden: documentData.elements.length + 1,
+    };
+    setDocumentData(prev => ({
+      ...prev,
+      elements: [...prev.elements, newElement],
+    }));
+  };
+
+  const updateElement = (id: string, updates: Partial<DocumentElement>) => {
+    setDocumentData(prev => ({
+      ...prev,
+      elements: prev.elements.map(el => 
+        el.id === id ? { ...el, ...updates } : el
+      ),
+    }));
+  };
+
+  const deleteElement = (id: string) => {
+    setDocumentData(prev => ({
+      ...prev,
+      elements: prev.elements
+        .filter(el => el.id !== id)
+        .map((el, index) => ({ ...el, orden: index + 1 }))
+    }));
+  };
+
+  const moveElement = (id: string, direction: 'up' | 'down') => {
+    setDocumentData(prev => {
+      const elements = [...prev.elements];
+      const currentIndex = elements.findIndex(el => el.id === id);
+      
+      if (direction === 'up' && currentIndex > 0) {
+        [elements[currentIndex], elements[currentIndex - 1]] = 
+        [elements[currentIndex - 1], elements[currentIndex]];
+      } else if (direction === 'down' && currentIndex < elements.length - 1) {
+        [elements[currentIndex], elements[currentIndex + 1]] = 
+        [elements[currentIndex + 1], elements[currentIndex]];
+      }
+      
+      // Recalcular órdenes
+      return {
+        ...prev,
+        elements: elements.map((el, index) => ({ ...el, orden: index + 1 }))
+      };
+    });
+  };
+
+  const redirigir = () => {
+    router.push('/intranet/inicio/sub-configuracion/plantilla-documento');
+  }
+
+  const handleSaveDocument = async () => {
+    if (!nombre.trim()) {
+      setError(true);
+      toast.error("El título del documento es obligatorio");
+      return;
+    }
+
+    try {
+      // Aquí llamarías a tu servicio para guardar el documento
+      const response = await DocumentosService.createDocument(nombre, documentData.elements);
+      
+      console.log("Estructura generada:", {
+        title: nombre,
+        elements: documentData.elements
+      });
+      
+      setError(false);
+      toast.success("Documento guardado exitosamente");
+      redirigir();
+    } catch (error) {
+      setError(true);
+      console.error("Error al guardar el documento:", error);
+      toast.error("Error al guardar el documento");
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      
+      <div className="relative mt-4">
+        <Label
+          htmlFor="nombre-documento"
+          className={`absolute left-3 transition-all duration-200 cursor-text ${
+            nombre || isFocusedNombre
+              ? "top-[-10px] text-sm bg-background px-1 text-primary"
+              : "top-3 text-muted-foreground"
+          } ${error ? "text-red-500" : ""}`}
+        >
+          Título del documento <span className="text-red-600">*</span>
+        </Label>
+        
+        <Input
+          id="nombre-documento"
+          value={nombre}
+          onChange={(e) => {
+            setNombre(e.target.value);
+            if (error) setError(false);
+          }}
+          onFocus={() => setIsFocusedNombre(true)}
+          onBlur={() => setIsFocusedNombre(false)}
+          className={`pt-4 ${error ? "border-red-500" : ""}`}
+          placeholder={isFocusedNombre ? "Escriba aquí el título del documento" : ""}
+        />
+        {error && (
+          <p className="mt-2 text-sm text-red-500">
+            ¡Ups! El título es obligatorio
+          </p>
+        )}
+      </div>
+
+      <Separator className="my-4" />
+
+      <div className='border rounded p-4 bg-slate-50 dark:bg-slate-900'>
+        {documentData.elements.map(element => (
+          <DocumentElementItem
+            key={element.id}
+            element={element}
+            updateElement={updateElement}
+            deleteElement={deleteElement}
+            moveElement={moveElement}
+          />
+        ))}
+
+        <div className="flex gap-2 mt-4 flex-wrap">
+          <AddElementButton addElement={addElement} />
+          <Button onClick={redirigir} variant="outline">
+            Cancelar
+          </Button>
+          <Button onClick={handleSaveDocument} className="bg-green-600 hover:bg-green-700">
+            Guardar Documento
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DocumentBuilder;

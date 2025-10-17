@@ -122,7 +122,7 @@ export default function UsersPage() {
               onDataChange={handleDataChange}
             />
           )}
-          <Toaster position="bottom-right" />
+          {/*<Toaster position="bottom-right" />*/}
         </div>
       </div>
     </PermissionGuard>

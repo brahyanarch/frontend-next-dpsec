@@ -7,7 +7,7 @@ export default function ToastDemo() {
   return (
     <>
       {/* Renderiza el componente Toaster para mostrar las notificaciones */}
-      <Toaster position="bottom-right" />
+      {/*<Toaster position="bottom-right" />*/}
 
       <Button
         variant="outline"

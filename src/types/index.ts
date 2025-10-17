@@ -93,3 +93,12 @@ export interface Project {
 export interface ProjectDetailProps {
   project: Project
 }
+
+export interface Task {
+  idtask: number;
+  title: string;
+  description: string | null;
+  estado: 'PENDIENTE' | 'ENPROCESO' | 'COMPLETADO' | 'ARCHIVADO';
+  createdAt: string; 
+  updatedAt: string;
+}

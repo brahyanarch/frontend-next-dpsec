@@ -1,23 +1,59 @@
 // services/api/formulario.service.ts
-import { z } from "zod";
-import { DataSchema, Data as Forms } from "@/app/intranet/inicio/sub-configuracion/formulario/data/schema"; // Asegúrate de importar tus esquemas de validación
-import { getToken } from "@/services/api/getToken.service"; // Importar la función para obtener el token
-import { toast } from "sonner"; // Importa la función toast de sonner
-import { Data as Form } from "@/app/intranet/inicio/sub-configuracion/formulario/data/schema";
-import { API_URL,apiClient } from "@/services/api/API.service"; 
+import { apiClient } from "@/services/api/API.service"; 
 
+export interface Form {
+  idf: number;
+  nmForm: string;
+  abre: string | null;
+  estado: boolean;
+  createdAt: string;
+  updatedAt: string;
+} 
+
+export interface FormsResponse {
+  success: boolean;
+  data: Form[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+    limit: number;
+  };
+}
+
+export interface GetFormsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort?: string; 
+  estado?: string;
+}
+/**
+ * Servicio de gestión de formularios
+ */
 
 export const FormularioService = {
-  getForms: async (): Promise<Forms[]> => {
+  /**
+   * Obtiene una lista de formularios
+  */
+
+  getForms: async (params?: GetFormsParams): Promise<FormsResponse> => {
     try {
-      const { data } = await apiClient.get('/api/form');
+      const { data } = await apiClient.get('/api/form', { params });
       return data;
     } catch (error) {
       throw new Error('Error al obtener formularios');
     }
   },
-
-  toggleEstado: async (idf: number, estado: boolean) => {
+  /**
+   * Funcion para cambiar el estado de un formulario
+   * @param idf identificador del formulario a cambiar
+   * @param estado estado del formulario desactivado o activado
+   * @returns Retorna un formulario 
+   */
+  toggleEstado: async (idf: number, estado: boolean) : Promise<Form> => {
     try {
       const { data } = await apiClient.put(`/api/form/toggle/${idf}`, { estado });
       return data;
@@ -26,15 +62,20 @@ export const FormularioService = {
     }
   },
 
-  createForm: async (nombre: string, preguntas: any[]): Promise<void> => {
+  createForm: async (
+  nombre: string,
+  preguntas: any[],
+  options?: { iddoc?: number | null; longActivity?: boolean; allowDocLink?: boolean }
+): Promise<Form> => {
     if (!nombre.trim()) {
-      toast.error("El nombre del formulario no puede estar vacío.");
       throw new Error("Nombre de formulario vacío");
     }
 
     try {
-      await apiClient.post('/api/form', { name: nombre, preguntas });
-      toast.success("Formulario guardado exitosamente");
+      const { data } = await apiClient.post('/api/form', { name: nombre, preguntas,iddoc: options?.iddoc ?? null,
+      longActivity: options?.longActivity ?? false,
+      allowDocLink: options?.allowDocLink ?? false, });
+      return data;
     } catch (error) {
       throw new Error('Error al guardar formulario');
     }
@@ -53,15 +94,13 @@ export const FormularioService = {
     }
   },
 
-  updateForm: async (id: string | number, formData: { name: string; preguntas: any[] }): Promise<void> => {
+  updateForm: async (id: string | number, formData: { name: string; preguntas: any[], iddoc: number, longActivity: boolean, allowDocLink: boolean }): Promise<void> => {
     if (!formData.name.trim()) {
-      toast.error("El nombre del formulario no puede estar vacío.");
       throw new Error("Nombre de formulario vacío");
     }
 
     try {
       await apiClient.put(`/api/form/preguntas/${id}`, formData);
-      toast.success("Formulario actualizado exitosamente");
     } catch (error) {
       throw new Error('Error al actualizar formulario');
     }
@@ -71,9 +110,7 @@ export const FormularioService = {
     try {
       console.log("Eliminando formulario con ID:", id);
       await apiClient.delete(`/api/form/${id}`);
-      toast.success("Formulario eliminado exitosamente");
     } catch (error) {
-      toast.success("Error al eliminar formulario");
       throw new Error('Error al eliminar formulario');
     }
   },

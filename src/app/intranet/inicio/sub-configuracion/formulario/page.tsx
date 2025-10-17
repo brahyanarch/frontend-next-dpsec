@@ -1,244 +1,306 @@
+// app/documents/page.tsx - VERSIÓN CORREGIDA
 "use client";
-import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+
+import { useState, useEffect, useCallback } from "react";
+import { DataTable } from "@/components/data-table/DataTable";
+import { ColumnDef } from "@/components/data-table/types";
 import { Button } from "@/components/ui/button";
-import { Plus, PlusCircle } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { DataTable } from "./components/data-table";
-import { columns } from "./components/column";
-import { Data as Forms } from "./data/schema";
-import { FormularioService } from "@/services/api/formulario.service";
-import SkeletonTable from "@/components/skeletonTable";
-import { Separator } from "@radix-ui/react-separator";
-import { Toaster, toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import {
+  EditIcon,
+  MoreHorizontalIcon,
+  TrashIcon,
+  PlusIcon,
+  Link,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Form, GetFormsParams, FormularioService
+} from "@/services/api/formulario.service";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { PermissionGuard } from "@/components/PermissionGuard";
 
-export function AlertDialogDemo() {
-  const [nombre, setNombre] = useState("");
-  const [isFocusedNombre, setIsFocusedNombre] = useState(false);
-  const [error, setError] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+// Definición de columnas
+const FormColumns: ColumnDef<Form>[] = [
+  {
+    key: "idf",
+    header: "ID",
+    accessorKey: "idf",
+    sortable: true,
+    visible: true,
+  },
+  {
+    key: "nmForm",
+    header: "Nombre",
+    accessorKey: "nmForm",
+    sortable: true,
+    visible: true,
+  },
+  {
+    key: "abre",
+    header: "Abreviatura",
+    accessorKey: "abre",
+    sortable: false,
+    visible: true,
+  },
+  {
+    key: "estado",
+    header: "Estado",
+    accessorKey: "estado",
+    sortable: false,
+    visible: true,
+    cell: (value: boolean, row: Form) => (
+      <EstadoCheckbox 
+        estado={value} 
+        form={row} 
+      />
+    ),
+  },
+  {
+    key: "createdAt",
+    header: "Fecha Creación",
+    accessorKey: "createdAt",
+    sortable: true,
+    visible: true,
+    cell: (value: string) => new Date(value).toLocaleDateString("es-ES"),
+  },
+  {
+    key: "updatedAt",
+    header: "Última Actualización",
+    accessorKey: "updatedAt",
+    sortable: true,
+    visible: false,
+    cell: (value: string) => new Date(value).toLocaleDateString("es-ES"),
+  },
+];
 
-  const handleContinue = (e: React.MouseEvent) => {
-    e.preventDefault();
+//  Componente separado para el checkbox con estado interno
+function EstadoCheckbox({ 
+  estado, 
+  form 
+}: { 
+  estado: boolean; 
+  form: Form;
+}) {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [currentEstado, setCurrentEstado] = useState(estado);
 
-    if (!nombre.trim()) {
-      setError(true);
-      return; // Mostrar error pero no cerrar el diálogo
+  const handleToggle = async () => {
+    const newEstado = !currentEstado;
+    
+    // 1. Actualización optimista inmediata
+    setCurrentEstado(newEstado);
+    setIsUpdating(true);
+
+    try {
+      // 2. Llamada a la API
+      await FormularioService.toggleEstado(form.idf, newEstado);
+      
+      // 3. Éxito - Confirmar el cambio
+      toast.success(`Documento ${newEstado ? "activado" : "desactivado"}`);
+      
+    } catch (error) {
+      console.error("Error updating document state:", error);
+      
+      // 4. Error - Revertir el cambio
+      setCurrentEstado(estado); // Volver al estado original
+      toast.error("Error al actualizar el estado del documento");
+      
+    } finally {
+      // 5. Siempre quitar el estado de "actualizando"
+      setIsUpdating(false);
     }
-
-    // Si está todo válido
-    setIsOpen(false);
-    setError(false);
-    console.log("Formulario guardado", nombre);
-    // Lógica para guardar el formulario...
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant="default"
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
-        >
-          Agregar formulario
-          <PlusCircle />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-3xl text-center">
-            Agregar formulario
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            En esta sección podrás agregar un formulario para que los usuarios
-            puedan completar al subir un proyecto.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-
-        <Label className="text-lg">Información del formulario</Label>
-
-        <div className="relative mt-4">
-          <Label
-            htmlFor="nombre-formulario"
-            className={`absolute left-3 transition-all duration-200 cursor-text ${
-              nombre || isFocusedNombre
-                ? "top-[-10px] text-sm bg-background px-1 text-primary"
-                : "top-3 text-muted-foreground"
-            } ${error ? "text-red-500" : ""}`}
-          >
-            Nombre del formulario <span className="text-red-600">*</span>
-          </Label>
-          <Input
-            id="nombre-formulario"
-            value={nombre}
-            onChange={(e) => {
-              setNombre(e.target.value);
-              if (error) setError(false); // Quitar error al escribir
-            }}
-            onFocus={() => setIsFocusedNombre(true)}
-            onBlur={() => setIsFocusedNombre(false)}
-            className={`pt-4 ${error ? "border-red-500" : ""}`}
-            placeholder={
-              isFocusedNombre ? "Escriba aqui el nombre del formulario" : ""
-            }
-          />
-          {error && (
-            <p className="mt-2 text-sm text-red-500">
-              ¡Ups! El nombre es obligatorio
-            </p>
-          )}
-        </div>
-
-        <AlertDialogFooter>
-          <AlertDialogCancel
-            className="bg-red-600 text-white hover:bg-red-800 hover:text-white"
-            onClick={() => setError(false)}
-          >
-            Cancelar
-          </AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-green-600 hover:bg-green-800"
-            onClick={handleContinue}
-          >
-            Continuar
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <div className="flex items-center justify-center">
+      <input
+        type="checkbox"
+        checked={currentEstado}
+        onChange={handleToggle}
+        disabled={isUpdating}
+        className={`h-4 w-4 accent-green-700 cursor-pointer ${
+          isUpdating ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      />
+      {isUpdating && (
+        <span className="ml-2 text-xs text-muted-foreground">Actualizando...</span>
+      )}
+    </div>
   );
 }
 
-export default function Formulario() {
-  const [formularios, setFormularios] = useState<Forms[] | null>(null);
-  const [activeId, setActiveId] = useState<number | null>(null);
+export default function FormPage() {
+  const [data, setData] = useState<Form[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [sort, setSort] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const loadForms = async () => {
-      try {
-        const data = await FormularioService.getForms();
-        if (data.length === 0) {
-          console.log("No se encontraron formularios");
-        }
-        if (!data) {
-          console.log("No se encontraron formularios");
-        }
 
-        setFormularios(data);
-      } catch (err) {
-        setError("Error al cargar los usuarios");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadForms();
-  }, []);
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get("success") === "true") {
-      toast.success("Formulario creado exitosamente");
-      // Limpiar el query param
-
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, "", newUrl);
-    }
-    if (searchParams.get("actualizado") === "true") {
-      toast.success("Formulario actualizado exitosamente");
-      // Limpiar el query param
-
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, "", newUrl);
-    }
-  }, []);
-
-  // Función para actualización optimista
-  const updateEstadoOptimista = async (idf: number, nuevoEstado: boolean) => {
+  // Función para cargar datos
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      // Llamar a tu API
-      if (!formularios) return false;
-      const updatedData = formularios.map((form) => {
-        if (form.idf === idf) return { ...form, estado: nuevoEstado };
-        if (form.estado) return { ...form, estado: false };
-        return form;
-      });
-      setFormularios(updatedData);
-      const response = await FormularioService.toggleEstado(idf, nuevoEstado);
-      if (!response) {
-        throw new Error("Error al actualizar el estado");
-      }
-      return true;
-    } catch (error) {
-      setFormularios(formularios); // Rollback automático
+      const params: GetFormsParams = {
+        page: pageIndex + 1,
+        limit: pageSize,
+      };
 
-      return false;
+      if (search) {
+        params.search = search;
+      }
+
+      if (filters.estado) {
+        params.estado = filters.estado;
+      }
+
+      if (sort) {
+        params.sort = `${sort.key}:${sort.direction}`;
+      }
+
+      const response = await FormularioService.getForms(params);
+      setData(response.data);
+      setTotalCount(response.pagination.totalCount);
+    } catch (error) {
+      //console.error("Error fetching documents:", error);
+      toast.error("No se pudieron cargar los formularios");
+    } finally {
+      setIsLoading(false);
     }
+  }, [pageIndex, pageSize, search, filters, sort]);
+
+  // Cargar datos cuando cambien los parámetros
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Acciones por fila
+  const rowActions = (row: Form) => (
+    
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <MoreHorizontalIcon className="h-4 w-4" />
+          <span className="sr-only">Abrir menú</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onClick={() => handleEdit(row)}
+          className="flex items-center gap-2"
+        >
+          <EditIcon className="h-4 w-4" />
+          Editar
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => handleDelete(row.idf)}
+          className="flex items-center gap-2 text-red-600"
+        >
+          <TrashIcon className="h-4 w-4" />
+          Eliminar
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  // Manejar edición
+  const handleEdit = (item: Form) => {
+    //console.log("Editar formulario:", item);
+    router.push("/intranet/inicio/sub-configuracion/formulario/editar-formulario/" + item.idf);
+    toast.info(`Editando: ${item.nmForm}`);
   };
 
-  console.log("Formularios:", formularios); // Depuración
+  // Manejar eliminación
+  const handleDelete = async (id: number) => {
+    toast.warning("¿Estás seguro de que quieres eliminar este Formulario?", {
+      action: {
+        label: "Eliminar",
+        onClick: async () => {
+          try {
+            await FormularioService.deleteForm(id);
+            toast.success("El Formularios se eliminó correctamente");
+            fetchData(); // Recargar datos
+          } catch (error) {
+            //console.error("Error deleting document:", error);
+            toast.error("No se pudo eliminar el Formulario");
+          }
+        },
+      },
+      cancel: {
+        label: "Cancelar",
+        onClick: () => {
+          toast.info("Eliminación cancelada");
+        }
+      },
+      duration: 10000,
+    });
+  };
+
+  // Manejar creación
+  const handleCreate = () => {
+  
+    // Redirigir a la nueva ruta
+    router.push("/intranet/inicio/sub-configuracion/formulario/nuevo-formulario");
+  
+    toast.info("Crear nuevo Formulario");
+  };
+
   return (
     <PermissionGuard requiredPermission="VER_FORMULARIOS">
-      <div className="mx-auto p-4 text-black dark:text-white space-y-4">
-        <Label className="text-2xl font-bold dark:text-slate-200">
-          Formularios
-        </Label>
-        {/*<AlertDialogDemo />*/}
-        <Separator orientation="horizontal" className="w-full" />
-        <Button
-          variant="default"
-          className="bg-blue-600 hover:bg-blue-700 w-auto"
-          asChild
-        >
-          <Link
-            href="/intranet/inicio/sub-configuracion/formulario/nuevo-formulario"
-            className=""
-          >
-            Agregar formulario
-            <PlusCircle />
-          </Link>
-        </Button>
 
-        <div className="hidden h-full flex-1 flex-col space-y-8 p-8 md:flex">
-          <div className="flex items-center justify-between space-y-2">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-left">
-                Formularios de esta sub unidad para subir proyectos
-              </h2>
-              <p className="text-muted-foreground">
-                Lista de todos los formularios configurados para esta sub
-                unidad.
-              </p>
-            </div>
-          </div>
-          {loading ? (
-            <SkeletonTable />
-          ) : (
-            <DataTable
-              data={formularios || []}
-              columns={columns}
-              onEstadoChange={updateEstadoOptimista}
-            />
-          )}
-
-          <Toaster position="bottom-right" />
+    <div className="container mx-auto py-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Gestión de Formularios</h1>
+          <p className="text-muted-foreground">
+            Administra y organiza tus formularios de esta Sub Unidad de manera eficiente.
+          </p>
         </div>
+        <Button onClick={handleCreate} className="flex items-center gap-2">
+          <PlusIcon className="h-4 w-4" />
+          Nuevo formulario
+        </Button>
       </div>
+
+      {/* DataTable */}
+      <DataTable
+        data={data}
+        columns={FormColumns}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        onPageChange={setPageIndex}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPageIndex(0);
+        }}
+        onSortChange={setSort}
+        onSearch={(value) => {
+          setSearch(value);
+          setPageIndex(0);
+        }}
+        onFilterChange={setFilters}
+        searchValue={search}
+        filters={filters}
+        sort={sort || undefined}
+        rowActions={rowActions}
+        isLoading={isLoading}
+      />
+    </div>
     </PermissionGuard>
   );
 }

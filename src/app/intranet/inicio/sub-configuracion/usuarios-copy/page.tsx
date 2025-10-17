@@ -95,7 +95,7 @@ export default function UsersPage() {
             columns={columns}
           />
         )}
-        <Toaster position="bottom-right" />
+        {/*<Toaster position="bottom-right" />*/}
       </div>
     </div>
   );

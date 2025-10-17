@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useTheme, ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Link from "next/link";
+import { Toaster } from "sonner";
 interface LayoutProps {
   children: ReactNode;
 }
@@ -107,6 +108,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </header>
 
             <div className="p-5">{children}</div>
+            <Toaster
+              position="bottom-right"
+              expand={false}
+              richColors
+              closeButton
+            />
           </SidebarInset>
         </SidebarProvider>
       </AuthProvider>
